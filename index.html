@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>車城國小｜網路健康監控 v2.4 Dashboard</title>
+<title>車城國小｜網路健康監控 v2.6 Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -278,7 +278,7 @@
 // =============================================
 // ⚙️ 填入你的 GAS URL
 // =============================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzPqmbLwMdAWvSNFrXgDudtjcW1gbU9ovPiPSweofJR704z4GXk8upMCmOXTFiarmeTiQ/exec';
+const GAS_URL = 'https://script.google.com/macros/s/YOUR_GAS_DEPLOYMENT_ID/exec';
 // =============================================
 
 let allRows = [], curF = 'all', curHost = '';
@@ -301,20 +301,18 @@ function hideBanner() {
   document.getElementById('upload-banner').style.display = 'none';
 }
 
-// ── JSONP ────────────────────────────────────
-function callGAS(params, cb) {
-  const name = '_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-  window[name] = (data) => {
-    delete window[name];
-    if (sc.parentNode) document.head.removeChild(sc);
+// ── Fetch（透過 Cloudflare Worker，校內外皆可用）──
+async function callGAS(params, cb) {
+  try {
+    const qs = Object.entries(params)
+      .map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    const res = await fetch(GAS_URL + '?' + qs);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
     cb(null, data);
-  };
-  const qs = Object.entries({...params, callback: name})
-    .map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-  const sc = document.createElement('script');
-  sc.onerror = () => { delete window[name]; cb(new Error('連線失敗')); };
-  sc.src = GAS_URL + '?' + qs;
-  document.head.appendChild(sc);
+  } catch(err) {
+    cb(err);
+  }
 }
 
 // ── 載入 ─────────────────────────────────────

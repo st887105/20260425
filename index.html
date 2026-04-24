@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>車城國小｜網路健康監控 Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #080c14;
+    --surface:  #0d1525;
+    --surface2: #111c30;
+    --border:   #1e3050;
+    --accent:   #00c6ff;
+    --pass:     #00e676;
+    --warn:     #ffd740;
+    --fail:     #ff5252;
+    --text:     #cce0ff;
+    --dim:      #4a6080;
+    --mono:     'Share Tech Mono', monospace;
+    --sans:     'Noto Sans TC', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,198,255,.012) 2px, rgba(0,198,255,.012) 4px);
+  }
+
+  /* ── Header ── */
+  header {
+    position: relative; z-index: 10;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg,#060a12,#0d1525);
+    padding: 0 28px; display: flex; align-items: center;
+    justify-content: space-between; height: 60px;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 17px; color: var(--accent); }
+  .dot  { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+  .hdr-right { display: flex; align-items: center; gap: 12px; }
+  #clock { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+  .btn {
+    padding: 6px 16px; border-radius: 4px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); cursor: pointer;
+    font-family: var(--sans); font-size: 13px; transition: all .2s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── 上傳狀態橫幅 ── */
+  #upload-banner {
+    position: relative; z-index: 9;
+    display: none; align-items: center; gap: 10px;
+    padding: 10px 28px; font-size: 13px; font-family: var(--mono);
+    border-bottom: 1px solid;
+    animation: fadeIn .3s;
+  }
+  #upload-banner.ok   { background: rgba(0,230,118,.1); border-color: rgba(0,230,118,.3); color: var(--pass); }
+  #upload-banner.fail { background: rgba(255,82,82,.1);  border-color: rgba(255,82,82,.3);  color: var(--fail); }
+  #upload-banner.info { background: rgba(0,198,255,.08); border-color: rgba(0,198,255,.2);  color: var(--accent); }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+
+  /* ── 統計列 ── */
+  .stats { position: relative; z-index: 5; display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); }
+  .stat { background: var(--surface); padding: 16px 22px; }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); font-family: var(--mono); }
+  .stat-val   { font-size: 30px; font-family: var(--mono); font-weight: bold; line-height: 1.1; }
+  .stat-val.t { color: var(--accent); } .stat-val.p { color: var(--pass); }
+  .stat-val.w { color: var(--warn); }  .stat-val.f { color: var(--fail); }
+
+  /* ── 主內容 ── */
+  main { position: relative; z-index: 5; max-width: 1280px; margin: 0 auto; padding: 22px 28px; }
+  .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .filter-bar input {
+    flex: 1; max-width: 260px; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 7px 13px; border-radius: 4px; font-family: var(--mono);
+    font-size: 13px; outline: none; transition: border-color .2s;
+  }
+  .filter-bar input:focus { border-color: var(--accent); }
+  .ftab { padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--dim); cursor: pointer; font-size: 13px; transition: all .2s; }
+  .ftab.active, .ftab:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,198,255,.07); }
+
+  /* ── 卡片 ── */
+  #grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(290px,1fr)); gap: 11px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; overflow: hidden; cursor: pointer;
+    transition: border-color .2s, transform .15s; position: relative;
+  }
+  .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .card.pass::before { background: var(--pass); }
+  .card.warn::before { background: var(--warn); }
+  .card.fail::before { background: var(--fail); }
+  .card-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 13px 9px 15px; border-bottom: 1px solid var(--border); }
+  .card-name { font-family: var(--mono); font-size: 14px; color: var(--accent); font-weight: bold; }
+  .badge { font-size: 11px; padding: 2px 9px; border-radius: 3px; font-family: var(--mono); font-weight: bold; }
+  .badge.pass { background: rgba(0,230,118,.15); color: var(--pass); border: 1px solid rgba(0,230,118,.3); }
+  .badge.warn { background: rgba(255,215,64,.12); color: var(--warn); border: 1px solid rgba(255,215,64,.3); }
+  .badge.fail { background: rgba(255,82,82,.15);  color: var(--fail); border: 1px solid rgba(255,82,82,.3); }
+  .card-body  { padding: 9px 13px 11px 15px; }
+  .card-ip    { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-bottom: 7px; }
+  .metrics    { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; }
+  .metric     { display: flex; justify-content: space-between; font-size: 12px; }
+  .mn { color: var(--dim); } .mv { font-family: var(--mono); }
+  .mv.good { color: var(--pass); } .mv.mid { color: var(--warn); } .mv.bad { color: var(--fail); }
+  .card-issues { margin-top: 7px; padding: 5px 9px; background: rgba(255,82,82,.08); border-radius: 4px; font-size: 11px; color: #ff8a80; border-left: 2px solid var(--fail); }
+  .card-time   { font-size: 10px; color: var(--dim); font-family: var(--mono); margin-top: 5px; }
+
+  /* ── 上傳狀態角標 ── */
+  .upload-tag {
+    position: absolute; top: 8px; right: 44px;
+    font-size: 10px; font-family: var(--mono);
+    padding: 1px 6px; border-radius: 3px;
+  }
+  .upload-tag.ok   { color: var(--pass); border: 1px solid rgba(0,230,118,.3); }
+  .upload-tag.fail { color: var(--fail); border: 1px solid rgba(255,82,82,.3);  }
+  .upload-tag.pending { color: var(--dim); border: 1px solid var(--border); }
+
+  /* ══ 診斷說明 Modal ══ */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 200; align-items: center; justify-content: center; }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    width: 680px; max-width: 95vw; max-height: 88vh; overflow: hidden;
+    display: flex; flex-direction: column;
+    box-shadow: 0 0 60px rgba(0,0,0,.6);
+    animation: popIn .2s;
+  }
+  @keyframes popIn { from{opacity:0;transform:scale(.94)} to{opacity:1;transform:none} }
+  .modal-hdr {
+    padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .modal-title { font-family: var(--mono); font-size: 16px; color: var(--accent); }
+  .modal-sub   { font-size: 12px; color: var(--dim); margin-top: 3px; font-family: var(--mono); }
+  .modal-close { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 20px; line-height: 1; padding: 0 4px; }
+  .modal-close:hover { color: var(--text); }
+  .modal-body  { overflow-y: auto; flex: 1; padding: 18px 22px; }
+
+  /* 診斷區塊 */
+  .diag-verdict {
+    border-radius: 8px; padding: 14px 18px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .diag-verdict.pass { background: rgba(0,230,118,.1); border: 1px solid rgba(0,230,118,.25); }
+  .diag-verdict.warn { background: rgba(255,215,64,.08); border: 1px solid rgba(255,215,64,.25); }
+  .diag-verdict.fail { background: rgba(255,82,82,.1);  border: 1px solid rgba(255,82,82,.25); }
+  .verdict-icon { font-size: 32px; flex-shrink: 0; }
+  .verdict-text h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .verdict-text p  { font-size: 13px; line-height: 1.6; color: var(--text); opacity: .9; }
+  .pass .verdict-text h3 { color: var(--pass); }
+  .warn .verdict-text h3 { color: var(--warn); }
+  .fail .verdict-text h3 { color: var(--fail); }
+
+  /* 指標列 */
+  .metric-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .mrow {
+    background: var(--surface2); border-radius: 6px; padding: 10px 14px;
+    display: grid; grid-template-columns: 140px 80px 1fr; align-items: center; gap: 10px;
+  }
+  .mrow-name  { font-size: 12px; color: var(--dim); }
+  .mrow-val   { font-family: var(--mono); font-size: 14px; font-weight: bold; text-align: center; }
+  .mrow-val.good { color: var(--pass); } .mrow-val.mid { color: var(--warn); } .mrow-val.bad { color: var(--fail); }
+  .mrow-bar   { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .mrow-fill  { height: 100%; border-radius: 3px; transition: width .4s; }
+  .mrow-fill.good { background: var(--pass); } .mrow-fill.mid { background: var(--warn); } .mrow-fill.bad { background: var(--fail); }
+  .mrow-explain { grid-column: 1/-1; font-size: 12px; color: #8aabcc; line-height: 1.5; padding-top: 4px; border-top: 1px solid var(--border); margin-top: 4px; }
+
+  /* 建議動作 */
+  .suggestions { margin-bottom: 18px; }
+  .suggestions h4 { font-size: 13px; color: var(--accent); margin-bottom: 10px; font-family: var(--mono); }
+  .suggestion-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: var(--surface2); border-radius: 6px; padding: 10px 14px;
+    margin-bottom: 7px; font-size: 13px; line-height: 1.6;
+  }
+  .sug-icon { flex-shrink: 0; font-size: 16px; }
+  .sug-text strong { color: var(--text); display: block; margin-bottom: 2px; }
+  .sug-text span   { color: var(--dim); font-size: 12px; }
+
+  /* 歷史標籤頁 */
+  .tab-bar { display: flex; gap: 2px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .tab { padding: 8px 16px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--dim); transition: all .2s; background: none; border-left: none; border-right: none; border-top: none; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel { display: none; } .tab-panel.active { display: block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th { background: var(--surface2); padding: 7px 12px; text-align: left; font-family: var(--mono); color: var(--dim); font-size: 11px; letter-spacing: 1px; position: sticky; top: 0; }
+  tbody tr { border-bottom: 1px solid rgba(30,48,80,.5); transition: background .15s; }
+  tbody tr:hover { background: rgba(0,198,255,.04); }
+  tbody td { padding: 6px 12px; font-family: var(--mono); color: var(--text); }
+
+  /* 空狀態 */
+  .empty { text-align: center; padding: 60px 0; color: var(--dim); font-family: var(--mono); }
+  .empty .eicon { font-size: 40px; margin-bottom: 10px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media(max-width:768px) {
+    .stats { grid-template-columns: repeat(2,1fr); }
+    main   { padding: 14px; }
+    header { padding: 0 14px; }
+    .mrow  { grid-template-columns: 110px 70px 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 上傳狀態橫幅（bat 那邊上傳後這裡會顯示） -->
+<div id="upload-banner">
+  <span id="banner-icon"></span>
+  <span id="banner-msg"></span>
+  <span style="margin-left:auto;cursor:pointer;color:var(--dim)" onclick="hideBanner()">✕</span>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="dot"></div>
+    <span>車城國小</span>
+    <span style="color:var(--dim)">|</span>
+    <span style="font-size:13px;color:var(--text)">網路健康監控</span>
+  </div>
+  <div class="hdr-right">
+    <span id="clock"></span>
+    <button class="btn" id="rbtn" onclick="loadData()">↺ 重新整理</button>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="stat-label">監控電腦</div><div class="stat-val t" id="s-t">—</div></div>
+  <div class="stat"><div class="stat-label">✅ 正常</div><div class="stat-val p" id="s-p">—</div></div>
+  <div class="stat"><div class="stat-label">⚠️ 注意</div><div class="stat-val w" id="s-w">—</div></div>
+  <div class="stat"><div class="stat-label">❌ 異常</div><div class="stat-val f" id="s-f">—</div></div>
+</div>
+
+<main>
+  <div class="filter-bar">
+    <input type="text" id="search" placeholder="搜尋電腦名稱或 IP…" oninput="render()">
+    <button class="ftab active" onclick="setF('all',this)">全部</button>
+    <button class="ftab"        onclick="setF('fail',this)">異常優先</button>
+    <button class="ftab"        onclick="setF('warn',this)">需注意</button>
+  </div>
+  <div id="grid"><div class="empty"><div class="eicon">📡</div><div>正在載入資料…</div></div></div>
+</main>
+
+<!-- 診斷說明 Modal -->
+<div class="overlay" id="modal" onclick="if(event.target===this)closeModal()">
+<div class="modal">
+  <div class="modal-hdr">
+    <div>
+      <div class="modal-title" id="m-title">診斷說明</div>
+      <div class="modal-sub"  id="m-sub"></div>
+    </div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="tab-bar">
+      <button class="tab active" onclick="switchTab('diag',this)">📊 診斷說明</button>
+      <button class="tab"        onclick="switchTab('hist',this)">📋 歷史紀錄</button>
+    </div>
+    <div class="tab-panel active" id="tab-diag"></div>
+    <div class="tab-panel"        id="tab-hist">
+      <table>
+        <thead><tr>
+          <th>時間</th><th>IP</th><th>閘道(ms)</th><th>外網(ms)</th>
+          <th>速度</th><th>DNS(ms)</th><th>狀態</th><th>修復</th>
+        </tr></thead>
+        <tbody id="hist-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// =============================================
+// ⚙️ 填入你的 GAS URL
+// =============================================
+const GAS_URL = 'https://script.google.com/macros/s/YOUR_GAS_DEPLOYMENT_ID/exec';
+// =============================================
+
+let allRows = [], curF = 'all', curHost = '';
+
+// 時鐘
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleDateString('zh-TW') + ' ' + new Date().toLocaleTimeString('zh-TW');
+}, 1000);
+
+// ── 橫幅工具 ─────────────────────────────────
+function showBanner(type, msg) {
+  const b = document.getElementById('upload-banner');
+  const icons = { ok:'☁️', fail:'⚠️', info:'ℹ️' };
+  document.getElementById('banner-icon').textContent = icons[type] || '';
+  document.getElementById('banner-msg').textContent  = msg;
+  b.className = type; b.style.display = 'flex';
+}
+function hideBanner() {
+  document.getElementById('upload-banner').style.display = 'none';
+}
+
+// ── JSONP ────────────────────────────────────
+function callGAS(params, cb) {
+  const name = '_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+  window[name] = (data) => {
+    delete window[name];
+    if (sc.parentNode) document.head.removeChild(sc);
+    cb(null, data);
+  };
+  const qs = Object.entries({...params, callback: name})
+    .map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  const sc = document.createElement('script');
+  sc.onerror = () => { delete window[name]; cb(new Error('連線失敗')); };
+  sc.src = GAS_URL + '?' + qs;
+  document.head.appendChild(sc);
+}
+
+// ── 載入 ─────────────────────────────────────
+function loadData() {
+  const btn = document.getElementById('rbtn');
+  btn.innerHTML = '<span class="spinner"></span>載入中';
+  btn.disabled = true;
+
+  callGAS({ action: 'summary' }, (err, data) => {
+    btn.innerHTML = '↺ 重新整理'; btn.disabled = false;
+    if (err || data.status !== 'ok') {
+      showBanner('fail', '載入失敗：' + (err ? err.message : data.message) + '　請確認 GAS_URL 是否正確填寫');
+      return;
+    }
+    allRows = data.rows || [];
+    const now = new Date().toLocaleTimeString('zh-TW');
+    showBanner('ok', `✓ 資料已更新（${now}）　共 ${allRows.length} 台電腦`);
+    setTimeout(hideBanner, 4000);
+    updateStats(); render();
+  });
+}
+
+function updateStats() {
+  document.getElementById('s-t').textContent = allRows.length;
+  document.getElementById('s-p').textContent = allRows.filter(r=>r.result==='pass').length;
+  document.getElementById('s-w').textContent = allRows.filter(r=>r.result==='warn').length;
+  document.getElementById('s-f').textContent = allRows.filter(r=>r.result==='fail').length;
+}
+
+function setF(f, el) {
+  curF = f;
+  document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active'); render();
+}
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  let rows = [...allRows];
+  if (curF==='fail') rows = rows.filter(r=>r.result==='fail').concat(rows.filter(r=>r.result!=='fail'));
+  if (curF==='warn') rows = rows.filter(r=>r.result==='warn');
+  if (q) rows = rows.filter(r=>(r.hostname||'').toLowerCase().includes(q)||(r.ip||'').includes(q));
+
+  const grid = document.getElementById('grid');
+  if (!rows.length) {
+    grid.innerHTML = '<div class="empty"><div class="eicon">🔍</div><div>找不到符合的電腦</div></div>';
+    return;
+  }
+  grid.innerHTML = rows.map(cardHTML).join('');
+}
+
+// ── 卡片 HTML ────────────────────────────────
+function cardHTML(r) {
+  const res = r.result || 'pass';
+  const badgeText = {pass:'✅ 正常', warn:'⚠️ 注意', fail:'❌ 異常'}[res];
+  const gw  = fmt(r.gw_ping_avg,  'ms');
+  const wan = fmt(r.wan_ping_avg, 'ms');
+  const dl  = fmtDL(r.download_kbps);
+  const dns = fmt(r.dns_ms, 'ms');
+  const issues = r.issues && r.issues!=='正常' ? `<div class="card-issues">${r.issues}</div>` : '';
+  return `
+  <div class="card ${res}" onclick="openModal('${escAttr(r.hostname)}')">
+    <div class="card-head">
+      <div class="card-name">${r.hostname||'—'}</div>
+      <div class="badge ${res}">${badgeText}</div>
+    </div>
+    <div class="card-body">
+      <div class="card-ip">${r.ip||'—'}  ·  ${r.mac||'—'}</div>
+      <div class="metrics">
+        <div class="metric"><span class="mn">閘道延遲</span><span class="mv ${vc(r.gw_ping_avg,30,80)}">${gw}</span></div>
+        <div class="metric"><span class="mn">外網延遲</span><span class="mv ${vc(r.wan_ping_avg,80,200)}">${wan}</span></div>
+        <div class="metric"><span class="mn">下載速度</span><span class="mv ${vcDL(r.download_kbps)}">${dl}</span></div>
+        <div class="metric"><span class="mn">DNS</span><span class="mv ${vc(r.dns_ms,100,300)}">${dns}</span></div>
+      </div>
+      ${issues}
+      <div class="card-time">最後診斷：${fmtTime(r.last_seen)}</div>
+    </div>
+  </div>`;
+}
+
+// ── 格式化 ───────────────────────────────────
+function fmt(v, unit='') {
+  return (v!=null && v!=='') ? v+unit : '—';
+}
+function fmtDL(v) {
+  if (v==null||v==='') return '—';
+  return v>=1000 ? (v/1000).toFixed(1)+' Mbps' : v+' kbps';
+}
+function fmtTime(iso) {
+  try { const d=new Date(iso); return d.toLocaleDateString('zh-TW')+' '+d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}); }
+  catch { return iso||'—'; }
+}
+function vc(v,g,b) {
+  if (v==null||v==='') return 'bad';
+  return v<=g?'good':v<=b?'mid':'bad';
+}
+function vcDL(v) {
+  if (v==null||v==='') return 'bad';
+  return v>=5000?'good':v>=1000?'mid':'bad';
+}
+function escAttr(s) { return (s||'').replace(/'/g,"\\'"); }
+
+// ════════════════════════════════════════════
+// ★ Modal 診斷說明
+// ════════════════════════════════════════════
+function openModal(hostname) {
+  curHost = hostname;
+  const r = allRows.find(x=>x.hostname===hostname) || {};
+  document.getElementById('m-title').textContent = `🖥  ${hostname}`;
+  document.getElementById('m-sub').textContent =
+    `IP：${r.ip||'—'}　MAC：${r.mac||'—'}　最後診斷：${fmtTime(r.last_seen)}`;
+
+  // 重設 tab
+  switchTab('diag', document.querySelector('.tab'));
+  buildDiagPanel(r);
+
+  // 載入歷史
+  document.getElementById('hist-body').innerHTML =
+    '<tr><td colspan="8" style="text-align:center;padding:16px;color:var(--dim)"><span class="spinner"></span>載入中…</td></tr>';
+  callGAS({ action:'history', hostname }, (err, data) => {
+    const tbody = document.getElementById('hist-body');
+    if (err || data.status!=='ok') {
+      tbody.innerHTML = `<tr><td colspan="8" style="color:var(--fail);padding:12px">載入失敗</td></tr>`;
+      return;
+    }
+    const rows = data.rows||[];
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--dim)">尚無歷史紀錄</td></tr>';
+      return;
+    }
+    const ri = {pass:'<span style="color:var(--pass)">✅</span>',warn:'<span style="color:var(--warn)">⚠️</span>',fail:'<span style="color:var(--fail)">❌</span>'};
+    tbody.innerHTML = rows.map(h=>`
+      <tr>
+        <td>${fmtTime(h.timestamp)}</td>
+        <td>${h.ip||'—'}</td>
+        <td style="color:${vColor(h.gw_ping_avg,30,80)}">${fmt(h.gw_ping_avg,'ms')}</td>
+        <td style="color:${vColor(h.wan_ping_avg,80,200)}">${fmt(h.wan_ping_avg,'ms')}</td>
+        <td>${fmtDL(h.download_kbps)}</td>
+        <td style="color:${vColor(h.dns_ms,100,300)}">${fmt(h.dns_ms,'ms')}</td>
+        <td>${ri[h.result]||h.result||'—'}</td>
+        <td style="color:var(--dim)">${h.actions_taken||'—'}</td>
+      </tr>`).join('');
+  });
+
+  document.getElementById('modal').classList.add('open');
+}
+
+function vColor(v,g,b) {
+  if (v==null||v==='') return 'var(--fail)';
+  return v<=g?'var(--pass)':v<=b?'var(--warn)':'var(--fail)';
+}
+
+// ── 診斷說明面板（人話解說核心）─────────────
+function buildDiagPanel(r) {
+  const res = r.result || 'pass';
+
+  // 整體判定說明
+  const verdictMap = {
+    pass: {
+      icon: '✅',
+      title: '網路狀況正常',
+      desc: '所有指標都在正常範圍內。這台電腦目前沒有發現網路問題，可以正常使用。'
+    },
+    warn: {
+      icon: '⚠️',
+      title: '網路有輕微異常，建議檢查',
+      desc: '部分指標偏離正常值，網路雖然可以使用，但速度或穩定性可能不佳。建議按照下方建議動作排查。'
+    },
+    fail: {
+      icon: '❌',
+      title: '網路連線異常，需要處理',
+      desc: '偵測到嚴重的網路問題，電腦可能無法正常上網或存取校內資源。請優先按照下方建議動作處理。'
+    }
+  };
+  const v = verdictMap[res];
+
+  // 逐項指標說明
+  const metrics = buildMetrics(r);
+
+  // 建議動作
+  const sugs = buildSuggestions(r);
+
+  document.getElementById('tab-diag').innerHTML = `
+    <div class="diag-verdict ${res}">
+      <div class="verdict-icon">${v.icon}</div>
+      <div class="verdict-text">
+        <h3>${v.title}</h3>
+        <p>${v.desc}</p>
+      </div>
+    </div>
+    <div class="metric-rows">${metrics}</div>
+    ${sugs ? `<div class="suggestions"><h4>▶ 建議動作</h4>${sugs}</div>` : ''}
+    ${r.actions_taken ? `<div style="font-size:12px;color:var(--dim);margin-top:8px;font-family:var(--mono)">🔧 已自動執行：${r.actions_taken}</div>` : ''}
+  `;
+}
+
+function buildMetrics(r) {
+  const rows = [
+    {
+      name: '閘道延遲',
+      val: r.gw_ping_avg, unit: 'ms',
+      good: 30, bad: 80, maxBar: 200,
+      explains: {
+        good: '路由器回應很快，本地網路狀態良好。',
+        mid:  `閘道延遲 ${r.gw_ping_avg}ms，稍微偏高。可能原因：路由器負載偏高、網路線品質不佳。`,
+        bad:  r.gw_ping_avg==null
+          ? '無法連到閘道（路由器）。可能原因：網路線掉了、路由器當機、IP 衝突。'
+          : `閘道延遲高達 ${r.gw_ping_avg}ms，本地網路有嚴重問題。建議重啟路由器。`
+      }
+    },
+    {
+      name: '外網延遲',
+      val: r.wan_ping_avg, unit: 'ms',
+      good: 80, bad: 200, maxBar: 400,
+      explains: {
+        good: '連到外部網路（Google DNS）速度正常，ISP 線路穩定。',
+        mid:  `外網延遲 ${r.wan_ping_avg}ms，比正常值高。可能是 ISP 線路壅塞或路由器頻寬不足。`,
+        bad:  r.wan_ping_avg==null
+          ? '無法連到外網（8.8.8.8）。若閘道正常，可能是 ISP 斷線或 DNS 設定錯誤。'
+          : `外網延遲高達 ${r.wan_ping_avg}ms，上網速度會明顯變慢。`
+      }
+    },
+    {
+      name: '下載速度',
+      val: r.download_kbps, unit: 'kbps',
+      good: 5000, bad: 1000, maxBar: 100000,
+      reverse: true,
+      explains: {
+        good: `下載速度 ${fmtDL(r.download_kbps)}，足以流暢使用網路教學資源。`,
+        mid:  `下載速度只有 ${fmtDL(r.download_kbps)}，低於建議值（5 Mbps）。瀏覽網頁還行，但影片可能會卡頓。`,
+        bad:  r.download_kbps==null
+          ? '無法測速，可能網路已中斷或嚴重壅塞。'
+          : `下載速度僅 ${fmtDL(r.download_kbps)}，非常緩慢，幾乎無法正常使用網路。`
+      }
+    },
+    {
+      name: 'DNS 解析',
+      val: r.dns_ms, unit: 'ms',
+      good: 100, bad: 300, maxBar: 600,
+      explains: {
+        good: 'DNS 解析速度正常，輸入網址後能快速找到對應伺服器。',
+        mid:  `DNS 解析需要 ${r.dns_ms}ms，偏慢。開啟新網頁時會有短暫延遲感。`,
+        bad:  r.dns_ms==null
+          ? 'DNS 解析失敗，可能導致所有網址都無法開啟（即使網路本身有連線）。'
+          : `DNS 解析需要 ${r.dns_ms}ms，非常緩慢。建議執行 ipconfig /flushdns 或更換 DNS 伺服器。`
+      }
+    }
+  ];
+
+  return rows.map(m => {
+    const cls = m.reverse
+      ? (m.val==null ? 'bad' : m.val>=m.good ? 'good' : m.val>=m.bad ? 'mid' : 'bad')
+      : (m.val==null ? 'bad' : m.val<=m.good ? 'good' : m.val<=m.bad ? 'mid' : 'bad');
+    const explain = m.explains[cls];
+    const pct = m.val==null ? 100
+      : m.reverse
+        ? Math.max(0, Math.min(100, 100 - m.val/m.maxBar*100))
+        : Math.max(0, Math.min(100, m.val/m.maxBar*100));
+    const displayVal = m.name==='下載速度' ? fmtDL(m.val) : fmt(m.val, m.unit);
+    return `
+    <div class="mrow">
+      <div class="mrow-name">${m.name}</div>
+      <div class="mrow-val ${cls}">${displayVal}</div>
+      <div class="mrow-bar"><div class="mrow-fill ${cls}" style="width:${pct}%"></div></div>
+      <div class="mrow-explain">${explain}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildSuggestions(r) {
+  const sugs = [];
+  const gw  = r.gw_ping_avg;
+  const wan = r.wan_ping_avg;
+  const gwL = r.gw_loss_pct;
+  const wL  = r.wan_loss_pct;
+  const dl  = r.download_kbps;
+  const dns = r.dns_ms;
+
+  if (gwL >= 50 || gw == null) {
+    sugs.push({icon:'🔌', strong:'確認網路線是否插好', detail:'閘道完全無回應，最常見原因是網路線鬆脫或路由器需要重啟。'});
+    sugs.push({icon:'🔄', strong:'重啟路由器', detail:'拔掉路由器電源等 30 秒再插回，大多數硬體卡頓問題可以解決。'});
+  } else if (gw > 30) {
+    sugs.push({icon:'🔄', strong:'考慮重啟路由器', detail:'閘道延遲偏高可能是路由器長時間運行導致記憶體不足。'});
+  }
+
+  if ((wL >= 50 || wan == null) && (gwL < 50 && gw != null)) {
+    sugs.push({icon:'📞', strong:'聯繫 ISP 確認線路', detail:'閘道正常但外網中斷，代表問題在路由器到 ISP 之間，可能是光纖或電話線路故障。'});
+  } else if (wan > 80) {
+    sugs.push({icon:'⏰', strong:'觀察是否特定時段壅塞', detail:'外網延遲偏高但未斷線，常見於上下課時段多人同時使用。'});
+  }
+
+  if (dns == null || dns > 300) {
+    sugs.push({icon:'🧹', strong:'執行 ipconfig /flushdns', detail:'清除 DNS 快取，解決因 DNS 紀錄過期導致的解析緩慢問題。（bat 工具在異常時會自動執行）'});
+    sugs.push({icon:'⚙️', strong:'檢查 DNS 設定', detail:'可嘗試將 DNS 改為 1.1.1.1（Cloudflare）或 8.8.8.8（Google），通常比自動取得更穩定。'});
+  }
+
+  if (dl != null && dl < 1000) {
+    sugs.push({icon:'👥', strong:'確認是否有裝置佔用頻寬', detail:'下載速度過低可能是同一網路有裝置在大量下載或串流。可至路由器後台查看連線裝置。'});
+  }
+
+  if (!sugs.length) {
+    sugs.push({icon:'👍', strong:'目前不需要任何動作', detail:'所有指標在正常範圍，繼續定期監控即可。'});
+  }
+
+  return sugs.map(s=>`
+    <div class="suggestion-item">
+      <span class="sug-icon">${s.icon}</span>
+      <div class="sug-text"><strong>${s.strong}</strong><span>${s.detail}</span></div>
+    </div>`).join('');
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+// 初始載入
+loadData();
+</script>
+</body>
+</html>

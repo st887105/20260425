@@ -90,8 +90,7 @@ run.addEventListener('click', async () => {
   const time = new Date().toLocaleString('zh-TW', { timeZone:'Asia/Taipei', hour12:false });
   get('status').textContent = summary;
   get('report').value = ['車城國小 LINE 網頁連線檢查', '臺灣時間 ' + time, summary,
-    ...results.map((item,index) => '第 ' + (index + 1) + ' 次　' + item.label)].join('
-');
+    ...results.map((item,index) => '第 ' + (index + 1) + ' 次　' + item.label)].join('\n');
   get('result').hidden = false;
   run.disabled = false;
   run.textContent = '重新檢查';

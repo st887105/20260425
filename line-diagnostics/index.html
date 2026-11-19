@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LINE 網路診斷｜車城國小</title>
+<style>
+:root { color-scheme:light; font-family:system-ui,"Microsoft JhengHei",sans-serif; color:#173641; background:#edf5f5 }
+* { box-sizing:border-box }
+body { margin:0; font-size:16px; line-height:1.6 }
+header { background:#123c49; color:#fff }
+.wrap { width:min(calc(100% - 36px),700px); margin:auto }
+header .wrap { display:flex; justify-content:space-between; align-items:center; padding:16px 0; gap:12px }
+header a { color:inherit; font-size:14px }
+main { padding:clamp(30px,8vw,70px) 0 40px }
+h1,h2,p { margin:0 }
+h1 { font-size:clamp(31px,6vw,52px); letter-spacing:-.055em; line-height:1.15 }
+h2 { font-size:19px }
+.lead, .note { margin-top:10px; color:#4d6870 }
+.card { background:#fff; border:1px solid #cfdfdf; border-radius:17px; padding:clamp(18px,5vw,34px); margin-top:24px }
+.btn { display:inline-flex; align-items:center; justify-content:center; min-height:45px; padding:8px 17px; border-radius:9px; border:1px solid #aac8c8; text-decoration:none; font:inherit; font-weight:670; background:#fff; color:#164b52; cursor:pointer }
+.main-btn { color:#fff; background:#096369; border-color:#096369 }
+.btn:hover { box-shadow:0 0 0 2px #5a9896 }
+:focus-visible { outline:3px solid #9d5300; outline-offset:3px }
+button:disabled { opacity:.64; cursor:wait }
+.status { margin:15px 0 0; color:#155e5b; font-weight:650 }
+.result { margin-top:14px }
+.result textarea { width:100%; min-height:123px; resize:vertical; color:inherit; border:1px solid #c0d5d4; border-radius:8px; background:#f4f9f8; padding:9px 12px; font:14px/1.6 ui-monospace,monospace }
+.actions { display:flex; flex-wrap:wrap; gap:9px; align-items:center; margin-top:12px }
+details { margin-top:19px; background:#f8fbfb; border:1px solid #cfdfdf; border-radius:11px; padding:13px 16px }
+summary { cursor:pointer; color:#164b52; font-weight:650 }
+.help { margin-top:8px; font-size:14px; color:#4d6870 }
+</style>
+</head>
+<body>
+<header><div class="wrap"><strong>屏東縣車城國小</strong><a href="../">原網路監控</a></div></header>
+<main class="wrap">
+<h1>LINE 網路診斷</h1>
+<p class="lead">傳圖或傳檔卡住時，請在發生問題的電腦按下檢查。免下載，也不用輸入指令。</p>
+<section class="card" aria-labelledby="basic-heading">
+<h2 id="basic-heading">網頁連線檢查</h2>
+<p class="note">測試瀏覽器能否連到本網站，並記下回應時間，方便提供給資訊老師。</p>
+<div class="actions"><button type="button" class="btn main-btn" id="run">開始檢查</button></div>
+<p class="status" id="status" role="status"></p>
+<div class="result" id="result" hidden>
+<textarea id="report" readonly aria-label="檢查結果"></textarea>
+<div class="actions"><button type="button" class="btn" id="copy">複製結果</button><span role="status" id="copyStatus" class="help"></span></div>
+</div>
+<p class="help">結果只顯示在本頁。網頁檢查的範圍是本網站連線，完整網卡與 IPv6 DNS 資料請用下方功能。</p>
+</section>
+<details>
+<summary>已由學校設定的 Windows 電腦</summary>
+<p class="help">按下按鈕即由電腦執行 ipconfig /all。瀏覽器若跳出開啟應用程式的提示，請選「開啟」。</p>
+<div class="actions"><a class="btn" id="windows" href="checheng-line-diag://start">開啟完整診斷</a></div>
+<p class="help" id="windowsStatus" role="status"></p>
+</details>
+</main>
+<script>
+const get = id => document.getElementById(id);
+const run = get('run');
+get('windows').addEventListener('click', () => {
+  get('windowsStatus').textContent = '若沒有開啟視窗，請先用上方「開始檢查」，再聯絡資訊老師。';
+});
+async function probe(index) {
+  const url = new URL(location.pathname, location.origin);
+  url.searchParams.set('check', Date.now() + '-' + index);
+  const control = new AbortController();
+  const timer = setTimeout(() => control.abort(), 3500);
+  const start = performance.now();
+  try {
+    const response = await fetch(url, { method:'HEAD', cache:'no-store', signal:control.signal });
+    if (!response.ok) return { label:'網站回應 HTTP ' + response.status };
+    const ms = Math.round(performance.now() - start);
+    return { ms, label:ms + ' 毫秒' };
+  } catch (error) {
+    return { label:error.name === 'AbortError' ? '超過 3.5 秒未回應' : '連線失敗' };
+  } finally { clearTimeout(timer); }
+}
+run.addEventListener('click', async () => {
+  run.disabled = true;
+  get('result').hidden = true;
+  get('copyStatus').textContent = '';
+  const results = [];
+  for (let i = 0; i < 3; i++) {
+    get('status').textContent = '檢查中 ' + (i + 1) + '／3';
+    results.push(await probe(i));
+  }
+  const count = results.filter(item => Number.isFinite(item.ms)).length;
+  const summary = '本網站成功回應 ' + count + '／3 次';
+  const time = new Date().toLocaleString('zh-TW', { timeZone:'Asia/Taipei', hour12:false });
+  get('status').textContent = summary;
+  get('report').value = ['車城國小 LINE 網頁連線檢查', '臺灣時間 ' + time, summary,
+    ...results.map((item,index) => '第 ' + (index + 1) + ' 次　' + item.label)].join('
+');
+  get('result').hidden = false;
+  run.disabled = false;
+  run.textContent = '重新檢查';
+});
+get('copy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(get('report').value);
+    get('copyStatus').textContent = '已複製，可貼給資訊老師。';
+  } catch {
+    get('report').select();
+    get('copyStatus').textContent = '請複製已選取的結果。';
+  }
+});
+</script>
+</body>
+</html>

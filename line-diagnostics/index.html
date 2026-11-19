@@ -44,9 +44,9 @@ summary { cursor:pointer; color:#164b52; font-weight:650 }
 <p class="status" id="status" role="status"></p>
 <div class="result" id="result" hidden>
 <textarea id="report" readonly aria-label="檢查結果"></textarea>
-<div class="actions"><button type="button" class="btn" id="copy">複製結果</button><span role="status" id="copyStatus" class="help"></span></div>
+<div class="actions"><button type="button" class="btn" id="copy">複製結果</button><a class="btn" id="submit-check">前往上傳結果</a><span role="status" id="copyStatus" class="help"></span></div>
 </div>
-<p class="help">結果只顯示在本頁。網頁檢查的範圍是本網站連線，完整網卡與 IPv6 DNS 資料請用下方功能。</p>
+<p class="help">檢查完成後可按「前往上傳結果」，以校方管理帳號登入並確認上傳。網頁檢查的範圍是本網站連線，完整網卡與 IPv6 DNS 資料請用下方功能。</p>
 </section>
 <details>
 <summary>已由學校設定的 Windows 電腦</summary>
@@ -55,7 +55,7 @@ summary { cursor:pointer; color:#164b52; font-weight:650 }
 <p class="help">新版 Windows 診斷預設監測 30 分鐘，約每 10 秒採樣一次，時間到會自動停止。</p>
 <p class="help" id="windowsStatus" role="status"></p>
 </details>
-<p class="help"><a href="https://script.google.com/a/macros/cces.ptc.edu.tw/s/AKfycbwvMesTggtN7hkKjxOMTeUTHo9i4udr-uAuq8nV6Ap_xiIthWON20SgaJzDu-a2cxnm/exec">管理員查修（限校方管理帳號）</a></p>
+<p class="help"><a id="admin-check" href="https://script.google.com/a/macros/cces.ptc.edu.tw/s/AKfycbwvMesTggtN7hkKjxOMTeUTHo9i4udr-uAuq8nV6Ap_xiIthWON20SgaJzDu-a2cxnm/exec">管理員查修（限校方管理帳號）</a></p>
 </main>
 <script>
 const get = id => document.getElementById(id);
@@ -82,10 +82,12 @@ run.addEventListener('click', async () => {
   run.disabled = true;
   get('result').hidden = true;
   get('copyStatus').textContent = '';
+  const startedAt = new Date().toISOString();
   const results = [];
   for (let i = 0; i < 3; i++) {
     get('status').textContent = '檢查中 ' + (i + 1) + '／3';
-    results.push(await probe(i));
+    const sample = await probe(i);
+    results.push({ ...sample, time: new Date().toISOString() });
   }
   const count = results.filter(item => Number.isFinite(item.ms)).length;
   const summary = '本網站成功回應 ' + count + '／3 次';
@@ -93,6 +95,9 @@ run.addEventListener('click', async () => {
   get('status').textContent = summary;
   get('report').value = ['車城國小 LINE 網頁連線檢查', '臺灣時間 ' + time, summary,
     ...results.map((item,index) => '第 ' + (index + 1) + ' 次　' + item.label)].join('\n');
+  const destination = new URL(get('admin-check').href);
+  destination.hash = new URLSearchParams({check: JSON.stringify({id: crypto.randomUUID(), startedAt, endedAt: new Date().toISOString(), samples: results})}).toString();
+  get('submit-check').href = destination.href;
   get('result').hidden = false;
   run.disabled = false;
   run.textContent = '重新檢查';

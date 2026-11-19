@@ -350,7 +350,11 @@ function setF(f, el) {
 
 function render() {
   const q = document.getElementById('search').value.toLowerCase();
-  let rows = [...allRows];
+  const lastSeen = row => {
+    const time = new Date(row.last_seen ?? '').getTime();
+    return Number.isFinite(time) ? time : -Infinity;
+  };
+  let rows = [...allRows].sort((a, b) => lastSeen(b) - lastSeen(a) || 0);
   if (curF==='fail') rows = rows.filter(r=>r.result==='fail').concat(rows.filter(r=>r.result!=='fail'));
   if (curF==='warn') rows = rows.filter(r=>r.result==='warn');
   if (q) rows = rows.filter(r=>(r.hostname||'').toLowerCase().includes(q)||(r.ip||'').includes(q));

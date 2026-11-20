@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>車城國小｜LINE 網路小幫手</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,"Microsoft JhengHei",sans-serif;color:#173641;background:#edf5f5;
+  --brand:#096369;--ink:#173641;--muted:#4d6870;--line:#cfdfdf;--soft:#f4f9f8;--pass:#16794a;--warn:#9a6400;--fail:#b3261e}
+*{box-sizing:border-box}
+body{margin:0;font-size:16px;line-height:1.6}
+a{color:#0b5d75}
+header{background:#123c49;color:#fff;position:sticky;top:0;z-index:30}
+.wrap{width:min(calc(100% - 32px),1080px);margin:auto}
+.narrow{max-width:720px}
+header .wrap{display:flex;justify-content:space-between;align-items:center;padding:12px 0;gap:12px}
+header strong{font-size:17px}
+.ham{background:none;border:1px solid #5d8592;color:#fff;border-radius:9px;min-width:44px;min-height:44px;font-size:22px;cursor:pointer}
+nav.menu{position:absolute;right:16px;top:64px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);min-width:230px;padding:6px;display:none}
+nav.menu.open{display:block}
+nav.menu a,nav.menu button{display:block;width:100%;text-align:left;padding:11px 14px;border-radius:8px;color:inherit;text-decoration:none;background:none;border:0;font:inherit;cursor:pointer}
+nav.menu a:hover,nav.menu button:hover{background:var(--soft)}
+main{padding:clamp(24px,6vw,52px) 0 40px}
+h1,h2,h3,p{margin:0}
+h1{font-size:clamp(28px,6vw,46px);letter-spacing:-.04em;line-height:1.15}
+h2{font-size:19px}
+.lead,.note{margin-top:10px;color:var(--muted)}
+.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:clamp(18px,4vw,30px);margin-top:20px}
+.hero{border:2px solid var(--brand)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:8px 18px;border-radius:10px;border:1px solid #aac8c8;text-decoration:none;font:inherit;font-weight:650;background:#fff;color:#164b52;cursor:pointer}
+.main-btn{color:#fff;background:var(--brand);border-color:var(--brand)}
+.big{font-size:19px;min-height:58px;padding:10px 28px}
+.btn:hover{box-shadow:0 0 0 2px #5a9896}
+:focus-visible{outline:3px solid #9d5300;outline-offset:3px}
+button:disabled{opacity:.64;cursor:wait}
+.status{margin:14px 0 0;color:#155e5b;font-weight:650}
+.result{margin-top:14px}
+.result textarea{width:100%;min-height:123px;resize:vertical;color:inherit;border:1px solid #c0d5d4;border-radius:8px;background:var(--soft);padding:9px 12px;font:14px/1.6 ui-monospace,monospace}
+.actions{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:14px}
+details{margin-top:14px;background:#f8fbfb;border:1px solid var(--line);border-radius:11px;padding:13px 16px}
+summary{cursor:pointer;color:#164b52;font-weight:650;min-height:28px}
+.help{margin-top:8px;font-size:14px;color:var(--muted)}
+ol.help{padding-left:20px}
+/* Toast */
+#toast{position:fixed;left:50%;top:78px;transform:translateX(-50%) translateY(-10px);background:#123c49;color:#fff;padding:12px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s;z-index:60;max-width:calc(100% - 32px)}
+#toast.show{opacity:1;transform:translateX(-50%)}
+/* Bottom sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:50}
+.sheet-bg.open{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;padding:10px 22px 26px;max-width:720px;margin:auto;transform:translateY(100%);visibility:hidden;transition:transform .25s,visibility .25s;z-index:55;max-height:85vh;overflow:auto}
+.sheet.open{transform:none;visibility:visible}
+.grip{width:44px;height:5px;border-radius:3px;background:#c7d6d6;margin:4px auto 14px}
+/* Admin */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:18px}
+.toolbar input{flex:1;min-width:180px;max-width:280px;min-height:44px;border:1px solid #c0d5d4;border-radius:9px;padding:6px 12px;font:inherit}
+.ftab{min-height:40px;padding:6px 14px;border-radius:9px;border:1px solid #c0d5d4;background:#fff;color:var(--muted);cursor:pointer;font:inherit}
+.ftab.active{background:var(--brand);border-color:var(--brand);color:#fff}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:18px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat small{color:var(--muted);font-size:13px}
+.stat b{display:block;font-size:28px;line-height:1.2}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;margin-top:16px}
+.pc{background:#fff;border:1px solid var(--line);border-left:5px solid #9bb;border-radius:12px;padding:12px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+.pc:hover{box-shadow:0 0 0 2px #9cc}
+.pc.fail{border-left-color:var(--fail)}.pc.warn{border-left-color:#d79a00}.pc.pass{border-left-color:var(--pass)}
+.pc-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.pc-name{font-weight:700;font-family:ui-monospace,monospace}
+.badge{font-size:12px;padding:2px 8px;border-radius:6px;font-weight:650;white-space:nowrap}
+.badge.pass{background:#e3f4ea;color:var(--pass)}.badge.warn{background:#fff3d6;color:var(--warn)}.badge.fail{background:#fde7e5;color:var(--fail)}.badge.none{background:#eef2f2;color:var(--muted)}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:13px;margin-top:8px}
+.kv span{display:flex;justify-content:space-between;gap:6px}.kv i{font-style:normal;color:var(--muted)}
+.good{color:var(--pass)}.mid{color:var(--warn)}.bad{color:var(--fail)}
+.issues{margin-top:8px;font-size:13px;background:#fdf1ef;color:#8c1d16;border-radius:6px;padding:4px 8px}
+.tiny{font-size:12px;color:var(--muted);margin-top:6px}
+.empty{text-align:center;padding:50px 0;color:var(--muted);grid-column:1/-1}
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:70;padding:12px}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;width:760px;max-width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-hdr{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
+.modal-body{padding:16px 20px;overflow:auto}
+.x{background:none;border:0;font-size:24px;cursor:pointer;min-width:44px;min-height:44px;color:var(--muted)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px;overflow-x:auto}
+.tab{background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;font:inherit;cursor:pointer;color:var(--muted);white-space:nowrap}
+.tab.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:650}
+.panel{display:none}.panel.active{display:block}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid #e3eded;text-align:left;white-space:nowrap}
+th{background:var(--soft);position:sticky;top:0}
+.verdict{border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.verdict.pass{background:#e3f4ea}.verdict.warn{background:#fff3d6}.verdict.fail{background:#fde7e5}.verdict.none{background:#eef2f2}
+.mrow{background:var(--soft);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:grid;grid-template-columns:110px 90px 1fr;gap:8px;align-items:center;font-size:14px}
+.bar{height:6px;background:#dbe7e7;border-radius:3px;overflow:hidden}.bar div{height:100%}
+.bar .good{background:var(--pass)}.bar .mid{background:#d79a00}.bar .bad{background:var(--fail)}
+.mrow p{grid-column:1/-1;font-size:13px;color:var(--muted)}
+.sug{background:var(--soft);border-radius:8px;padding:9px 12px;margin-bottom:7px;font-size:14px}
+.sug span{display:block;color:var(--muted);font-size:13px}
+#banner{display:none;padding:10px 16px;font-size:14px}
+#banner.fail{display:block;background:#fde7e5;color:#8c1d16}
+#banner.ok{display:block;background:#e3f4ea;color:var(--pass)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #c7d6d6;border-top-color:var(--brand);border-radius:50%;animation:s .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:10px 0 36px}
+footer button{background:none;border:0;color:#0b5d75;text-decoration:underline;cursor:pointer;font:inherit}
+[hidden]{display:none!important}
+@media(max-width:760px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.mrow{grid-template-columns:90px 80px 1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <strong>車城國小｜LINE 網路小幫手</strong>
+    <button class="ham" id="ham" aria-label="開啟選單" aria-expanded="false" aria-controls="menu">☰</button>
+  </div>
+  <nav class="menu" id="menu">
+    <a href="#">🛠️ 一鍵修復（老師用）</a>
+    <a href="#check">🔎 網頁連線檢查</a>
+    <a href="#admin">📊 管理者儀表板</a>
+    <button type="button" id="menuLog">🧾 版本紀錄</button>
+  </nav>
+</header>
+<div id="banner" role="status"></div>
+
+<!-- ===================== 老師端 ===================== -->
+<main class="wrap narrow" id="view-teacher">
+  <h1>LINE 傳檔卡住了嗎？</h1>
+  <p class="lead">在發生問題的電腦按下「一鍵修復」，會改用學網備援 DNS，讓 LINE 傳圖、傳檔走 IPv4。不用輸入指令，也不用自己改網路卡設定。</p>
+
+  <section class="card hero" aria-labelledby="fix-h">
+    <h2 id="fix-h">一鍵修復 LINE 傳檔</h2>
+    <p class="note">IPv4 DNS → 163.24.239.2　IPv6 DNS → 2001:288:8600:1::1002<br>完成後會跳出結果視窗，並在背景記錄網路狀況 30 分鐘，有異常會自動通知資訊老師。</p>
+    <div class="actions">
+      <a class="btn main-btn big" id="btnFix" href="checheng-line-dns://fix">🛠️ 一鍵修復</a>
+      <a class="btn" id="btnMon" href="checheng-line-dns://monitor">只監測、不改設定</a>
+    </div>
+  </section>
+
+  <details>
+    <summary>帶筆電離開學校／想改回原本設定</summary>
+    <p class="help">小幫手偵測到不在校網時，會自動暫時還原，回到學校再自動套用，通常不用手動處理。如果要完全取消，請按：</p>
+    <div class="actions"><a class="btn" id="btnRestore" href="checheng-line-dns://restore">↩️ 還原 DNS 設定</a></div>
+  </details>
+
+  <section class="card" id="check" aria-labelledby="basic-heading">
+    <h2 id="basic-heading">網頁連線檢查</h2>
+    <p class="note">測試瀏覽器能否連到本網站並記下回應時間，可以在還沒安裝小幫手的電腦上使用。</p>
+    <div class="actions"><button type="button" class="btn main-btn" id="run">開始檢查</button></div>
+    <p class="status" id="status" role="status"></p>
+    <div class="result" id="result" hidden>
+      <textarea id="report" readonly aria-label="檢查結果"></textarea>
+      <div class="actions"><button type="button" class="btn" id="copy">複製結果</button><a class="btn" id="submit-check">前往上傳結果</a><span role="status" id="copyStatus" class="help"></span></div>
+    </div>
+    <p class="help">檢查完成後可按「前往上傳結果」，用校方管理帳號登入後確認上傳。網頁檢查只能測本網站的連線，完整的 DNS 與 IPv6 資料請用上方的小幫手。</p>
+  </section>
+
+  <details>
+    <summary>按了沒反應？</summary>
+    <ol class="help">
+      <li>瀏覽器若詢問「要開啟 車城國小 LINE 小幫手 嗎？」，請選「開啟」。</li>
+      <li>完全沒反應，表示這台電腦還沒安裝小幫手，請先用上方「網頁連線檢查」，再聯絡資訊老師。</li>
+      <li>資訊老師安裝方式：在該電腦執行 <code>install.bat</code>（只需一次，要有管理員權限）。</li>
+    </ol>
+  </details>
+  <details>
+    <summary>舊版 Windows 完整診斷（ipconfig /all）</summary>
+    <p class="help">已由學校設定的電腦可使用。預設監測 30 分鐘，約每 10 秒採樣一次。</p>
+    <div class="actions"><a class="btn" id="windows" href="checheng-line-diag://start">開啟完整診斷</a></div>
+  </details>
+  <p class="help" style="margin-top:18px"><a id="admin-check" href="https://script.google.com/a/macros/cces.ptc.edu.tw/s/AKfycbwvMesTggtN7hkKjxOMTeUTHo9i4udr-uAuq8nV6Ap_xiIthWON20SgaJzDu-a2cxnm/exec">管理員查修（限校方管理帳號）</a></p>
+</main>
+
+<!-- ===================== 管理端 ===================== -->
+<main class="wrap" id="view-admin" hidden>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+    <div><h1>管理者儀表板</h1><p class="lead">LINE 傳檔監測 ＋ 網路健康監控（每 60 秒自動更新）</p></div>
+    <button class="btn" id="reload">↺ 重新整理</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><small>監控電腦</small><b id="s-t">—</b></div>
+    <div class="stat"><small>已改備援 DNS</small><b id="s-fix" class="good">—</b></div>
+    <div class="stat"><small>LINE 異常</small><b id="s-lf" class="bad">—</b></div>
+    <div class="stat"><small>網路需注意</small><b id="s-nw" class="mid">—</b></div>
+    <div class="stat"><small>網路異常</small><b id="s-nf" class="bad">—</b></div>
+  </div>
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="搜尋電腦名稱或 IP" aria-label="搜尋電腦名稱或 IP">
+    <button class="ftab active" data-f="all">全部</button>
+    <button class="ftab" data-f="line">LINE 異常</button>
+    <button class="ftab" data-f="fixed">已改 DNS</button>
+    <button class="ftab" data-f="net">網路異常</button>
+  </div>
+  <div id="grid"><div class="empty"><span class="spin"></span>正在載入資料…</div></div>
+</main>
+
+<footer>
+  車城國小資訊老師徐吉德整理製作@2026　·　<span id="ver"></span>　<button type="button" id="footLog">版本紀錄</button>
+</footer>
+
+<!-- Toast -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- Bottom sheet：按下按鈕後的說明 -->
+<div class="sheet-bg" id="sheetBg"></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-h">
+  <div class="grip"></div>
+  <h2 id="sheet-h">接下來會發生什麼？</h2>
+  <ol class="help" id="sheetBody"></ol>
+  <div class="actions"><button class="btn main-btn" id="sheetClose">我知道了</button></div>
+</section>
+
+<!-- Modal：電腦詳細資料 -->
+<div class="overlay" id="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">
+    <div class="modal-hdr">
+      <div><h2 id="m-title">—</h2><p class="tiny" id="m-sub"></p></div>
+      <button class="x" id="mClose" aria-label="關閉">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="line">LINE 監測</button>
+        <button class="tab" data-tab="diag">網路診斷說明</button>
+        <button class="tab" data-tab="nhist">網路歷史</button>
+      </div>
+      <div class="panel active" id="p-line"></div>
+      <div class="panel" id="p-diag"></div>
+      <div class="panel" id="p-nhist"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal：版本紀錄 -->
+<div class="overlay" id="logModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="log-h">
+    <div class="modal-hdr"><h2 id="log-h">版本紀錄</h2><button class="x" id="logClose" aria-label="關閉">✕</button></div>
+    <div class="modal-body" id="logBody"></div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// ⚙️ 設定：兩個 GAS 網址
+// =============================================
+const LINE_GAS_URL = 'https://script.google.com/macros/s/請貼上LINE小幫手GAS部署網址/exec'; // 新：LINE 網路小幫手
+const NET_GAS_URL  = 'https://script.google.com/macros/s/AKfycbzPqmbLwMdAWvSNFrXgDudtjcW1gbU9ovPiPSweofJR704z4GXk8upMCmOXTFiarmeTiQ/exec'; // 原：網路健康監控 v2.6
+// =============================================
+const CHANGELOG = [
+  { version: 'v3.0.0', date: '2026-11-20', desc: '合併 LINE 網路診斷與網路健康監控；新增一鍵修復 DNS（學網備援 DNS）、30 分鐘封包監測上傳試算表、異常自動通知管理者' },
+  { version: 'v2.6',   date: '2026-04-25', desc: '網路健康監控儀表板（閘道/外網/下載/DNS）' }
+];
+const get = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+get('ver').textContent = CHANGELOG[0].version;
+
+// ---------- 漢堡選單 / 路由 ----------
+const menu = get('menu'), ham = get('ham');
+ham.addEventListener('click', () => { const o = menu.classList.toggle('open'); ham.setAttribute('aria-expanded', o); });
+menu.addEventListener('click', () => { menu.classList.remove('open'); ham.setAttribute('aria-expanded', false); });
+document.addEventListener('click', e => { if (!menu.contains(e.target) && e.target !== ham) menu.classList.remove('open'); });
+let adminTimer = null;
+function route() {
+  const admin = location.hash === '#admin';
+  get('view-teacher').hidden = admin;
+  get('view-admin').hidden = !admin;
+  clearInterval(adminTimer);
+  if (admin) { loadAll(); adminTimer = setInterval(loadAll, 60000); }
+  else if (location.hash === '#check') get('check').scrollIntoView({ behavior: 'smooth' });
+}
+window.addEventListener('hashchange', route);
+
+// ---------- Toast / Bottom sheet ----------
+let toastT;
+function toast(msg) { const t = get('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3500); }
+function openSheet(items) {
+  get('sheetBody').innerHTML = items.map(i => '<li>' + i + '</li>').join('');
+  get('sheetBg').classList.add('open'); get('sheet').classList.add('open'); get('sheetClose').focus();
+}
+function closeSheet() { get('sheetBg').classList.remove('open'); get('sheet').classList.remove('open'); }
+get('sheetBg').addEventListener('click', closeSheet);
+get('sheetClose').addEventListener('click', closeSheet);
+const SHEETS = {
+  btnFix: ['瀏覽器會詢問是否開啟「車城國小 LINE 小幫手」，請選<b>開啟</b>。', '約 10–20 秒後，右下角會跳出結果視窗。', '看到「只回應 IPv4」就完成了，請回 LINE 再傳一次圖或檔案。', '如果沒有任何反應，代表這台電腦還沒安裝小幫手，請聯絡資訊老師。'],
+  btnMon: ['瀏覽器詢問時請選<b>開啟</b>。', '小幫手不會改任何設定，只在背景記錄 30 分鐘網路狀況，交給資訊老師分析。'],
+  btnRestore: ['瀏覽器詢問時請選<b>開啟</b>。', 'DNS 會改回安裝小幫手之前的設定，校外自動切換也會一起停用。']
+};
+Object.keys(SHEETS).forEach(id => get(id).addEventListener('click', () => { toast('已送出指令給小幫手'); openSheet(SHEETS[id]); }));
+get('windows').addEventListener('click', () => toast('若沒有開啟視窗，請先用「開始檢查」，再聯絡資訊老師。'));
+
+// ---------- 網頁連線檢查（沿用原 LINE 網路診斷） ----------
+const run = get('run');
+async function probe(index) {
+  const url = new URL(location.pathname, location.origin);
+  url.searchParams.set('check', Date.now() + '-' + index);
+  const control = new AbortController();
+  const timer = setTimeout(() => control.abort(), 3500);
+  const start = performance.now();
+  try {
+    const response = await fetch(url, { method: 'HEAD', cache: 'no-store', signal: control.signal });
+    if (!response.ok) return { label: '網站回應 HTTP ' + response.status };
+    const ms = Math.round(performance.now() - start);
+    return { ms, label: ms + ' 毫秒' };
+  } catch (error) {
+    return { label: error.name === 'AbortError' ? '超過 3.5 秒未回應' : '連線失敗' };
+  } finally { clearTimeout(timer); }
+}
+run.addEventListener('click', async () => {
+  run.disabled = true;
+  get('result').hidden = true;
+  get('copyStatus').textContent = '';
+  const startedAt = new Date().toISOString();
+  const results = [];
+  for (let i = 0; i < 3; i++) {
+    get('status').textContent = '檢查中 ' + (i + 1) + '／3';
+    const sample = await probe(i);
+    results.push({ ...sample, time: new Date().toISOString() });
+  }
+  const count = results.filter(item => Number.isFinite(item.ms)).length;
+  const summary = '本網站成功回應 ' + count + '／3 次';
+  const time = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+  get('status').textContent = summary;
+  get('report').value = ['車城國小 LINE 網頁連線檢查', '臺灣時間 ' + time, summary,
+    ...results.map((item, index) => '第 ' + (index + 1) + ' 次　' + item.label)].join('\n');
+  const destination = new URL(get('admin-check').href);
+  destination.hash = new URLSearchParams({ check: JSON.stringify({ id: crypto.randomUUID(), startedAt, endedAt: new Date().toISOString(), samples: results }) }).toString();
+  get('submit-check').href = destination.href;
+  get('result').hidden = false;
+  run.disabled = false;
+  run.textContent = '重新檢查';
+});
+get('copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(get('report').value); get('copyStatus').textContent = '已複製，可貼給資訊老師。'; }
+  catch { get('report').select(); get('copyStatus').textContent = '請複製已選取的結果。'; }
+});
+
+// ---------- 版本紀錄 ----------
+function openLog() {
+  get('logBody').innerHTML = '<div class="tbl"><table><thead><tr><th>版本</th><th>日期</th><th>說明</th></tr></thead><tbody>' +
+    CHANGELOG.map(c => `<tr><td>${esc(c.version)}</td><td>${esc(c.date)}</td><td style="white-space:normal">${esc(c.desc)}</td></tr>`).join('') + '</tbody></table></div>';
+  get('logModal').classList.add('open');
+}
+get('menuLog').addEventListener('click', openLog);
+get('footLog').addEventListener('click', openLog);
+get('logClose').addEventListener('click', () => get('logModal').classList.remove('open'));
+get('logModal').addEventListener('click', e => { if (e.target.id === 'logModal') get('logModal').classList.remove('open'); });
+
+// =====================================================
+// 管理端
+// =====================================================
+function callJSONP(base, params, cb) {
+  const name = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+  const s = document.createElement('script');
+  let done = false;
+  const finish = (err, data) => { if (done) return; done = true; delete window[name]; s.remove(); cb(err, data); };
+  window[name] = data => finish(null, data);
+  s.onerror = () => finish(new Error('JSONP 連線失敗'));
+  setTimeout(() => finish(new Error('逾時')), 20000);
+  s.src = base + '?' + new URLSearchParams({ ...params, callback: name });
+  document.head.appendChild(s);
+}
+async function callNet(params) {
+  const res = await fetch(NET_GAS_URL + '?' + new URLSearchParams(params));
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+const lineGas = params => new Promise((ok, no) => callJSONP(LINE_GAS_URL, params, (e, d) => e ? no(e) : ok(d)));
+
+let merged = [], curF = 'all', loading = false;
+function banner(type, msg) { const b = get('banner'); b.className = type; b.textContent = msg; if (type === 'ok') setTimeout(() => { b.className = ''; }, 4000); }
+
+async function loadAll() {
+  if (loading) return; loading = true;
+  const btn = get('reload'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>載入中';
+  const [lineR, netR] = await Promise.allSettled([lineGas({ action: 'summary' }), callNet({ action: 'summary' })]);
+  btn.disabled = false; btn.textContent = '↺ 重新整理'; loading = false;
+  const errs = [];
+  const lineRows = lineR.status === 'fulfilled' && lineR.value.status === 'ok' ? lineR.value.rows : (errs.push('LINE 監測'), []);
+  const netRows  = netR.status === 'fulfilled' && netR.value.status === 'ok' ? netR.value.rows : (errs.push('網路健康'), []);
+  const map = new Map();
+  netRows.forEach(r => { const k = String(r.hostname || '').toLowerCase(); if (k) map.set(k, { hostname: r.hostname, net: r, line: null }); });
+  lineRows.forEach(r => { const k = String(r.hostname || '').toLowerCase(); if (!k) return; const o = map.get(k) || { hostname: r.hostname, net: null }; o.line = r; map.set(k, o); });
+  merged = [...map.values()];
+  if (errs.length) banner('fail', '⚠️ ' + errs.join('、') + ' 資料暫時無法連線，請確認 GAS 網址後重新整理。');
+  else banner('ok', '✓ 資料已更新（' + new Date().toLocaleTimeString('zh-TW') + '）共 ' + merged.length + ' 台電腦');
+  updateStats(); render();
+}
+
+function updateStats() {
+  get('s-t').textContent = merged.length;
+  get('s-fix').textContent = merged.filter(m => m.line && m.line.dns_mode === 'fixed').length;
+  get('s-lf').textContent = merged.filter(m => m.line && m.line.result === 'fail').length;
+  get('s-nw').textContent = merged.filter(m => m.net && m.net.result === 'warn').length;
+  get('s-nf').textContent = merged.filter(m => m.net && m.net.result === 'fail').length;
+}
+document.querySelectorAll('.ftab').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  b.classList.add('active'); curF = b.dataset.f; render();
+}));
+get('search').addEventListener('input', render);
+get('reload').addEventListener('click', loadAll);
+
+const lastTime = m => Math.max(new Date(m.line?.last_seen || 0).getTime() || 0, new Date(m.net?.last_seen || 0).getTime() || 0);
+const worst = m => { const r = [m.line?.result, m.net?.result]; return r.includes('fail') ? 'fail' : r.includes('warn') ? 'warn' : (r.includes('pass') ? 'pass' : ''); };
+function render() {
+  const q = get('search').value.trim().toLowerCase();
+  let rows = [...merged].sort((a, b) => lastTime(b) - lastTime(a));
+  if (curF === 'line') rows = rows.filter(m => m.line && m.line.result !== 'pass');
+  if (curF === 'fixed') rows = rows.filter(m => m.line && m.line.dns_mode === 'fixed');
+  if (curF === 'net') rows = rows.filter(m => m.net && m.net.result !== 'pass');
+  if (q) rows = rows.filter(m => String(m.hostname).toLowerCase().includes(q) || String(m.line?.ip || m.net?.ip || '').includes(q));
+  const grid = get('grid');
+  if (!rows.length) { grid.innerHTML = '<div class="empty">🔍 找不到符合的電腦</div>'; return; }
+  grid.innerHTML = rows.map(cardHTML).join('');
+  grid.querySelectorAll('.pc').forEach(el => el.addEventListener('click', () => openModal(el.dataset.host)));
+}
+
+const BADGE = { pass: '✅ 正常', warn: '⚠️ 注意', fail: '❌ 異常' };
+const badge = (r, label) => r ? `<span class="badge ${esc(r)}">${label} ${BADGE[r] || esc(r)}</span>` : `<span class="badge none">${label} —</span>`;
+const msTxt = v => (v === null || v === undefined || v === '') ? '逾時/無' : v + 'ms';
+function cardHTML(m) {
+  const L = m.line, N = m.net;
+  const issues = [L && L.issues, N && N.issues && N.issues !== '正常' ? N.issues : ''].filter(Boolean).join('；');
+  return `<button type="button" class="pc ${worst(m)}" data-host="${esc(m.hostname)}">
+    <div class="pc-head"><span class="pc-name">${esc(m.hostname)}</span><span>${badge(L && L.result, 'LINE')} ${badge(N && N.result, '網路')}</span></div>
+    <div class="tiny">${esc(L?.ip || N?.ip || '—')} · ${esc(L?.mac || N?.mac || '—')}</div>
+    <div class="kv">
+      <span><i>DNS</i><b class="${L?.dns_mode === 'fixed' ? 'good' : ''}">${L ? (L.dns_mode === 'fixed' ? '備援' : '自動') : '—'}</b></span>
+      <span><i>AAAA</i><b class="${L ? (Number(L.aaaa_count) > 0 ? 'mid' : 'good') : ''}">${L ? esc(L.aaaa_count) : '—'}</b></span>
+      <span><i>443 v4</i><b class="${L ? vc(L.tcp_v4_ms, 150, 500) : ''}">${L ? msTxt(L.tcp_v4_ms) : '—'}</b></span>
+      <span><i>443 v6</i><b>${L ? msTxt(L.tcp_v6_ms) : '—'}</b></span>
+      <span><i>外網</i><b class="${N ? vc(N.wan_ping_avg, 80, 200) : ''}">${N ? fmt(N.wan_ping_avg, 'ms') : '—'}</b></span>
+      <span><i>下載</i><b class="${N ? vcDL(N.download_kbps) : ''}">${N ? fmtDL(N.download_kbps) : '—'}</b></span>
+    </div>
+    ${issues ? `<div class="issues">${esc(issues)}</div>` : ''}
+    <div class="tiny">最後回報：${fmtTime(lastTime(m) || null)}</div>
+  </button>`;
+}
+
+// ---------- 格式化（沿用 v2.6） ----------
+function fmt(v, unit = '') { return (v != null && v !== '') ? esc(v) + unit : '—'; }
+function fmtDL(v) { if (v == null || v === '') return '—'; return v >= 1000 ? (v / 1000).toFixed(1) + ' Mbps' : esc(v) + ' kbps'; }
+function fmtTime(t) { if (!t) return '—'; const d = new Date(t); if (isNaN(d)) return '—'; return d.toLocaleDateString('zh-TW') + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }); }
+function vc(v, g, b) { if (v == null || v === '') return 'bad'; return v <= g ? 'good' : v <= b ? 'mid' : 'bad'; }
+function vcDL(v) { if (v == null || v === '') return 'bad'; return v >= 5000 ? 'good' : v >= 1000 ? 'mid' : 'bad'; }
+
+// ---------- Modal ----------
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'p-' + name));
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+get('mClose').addEventListener('click', () => get('modal').classList.remove('open'));
+get('modal').addEventListener('click', e => { if (e.target.id === 'modal') get('modal').classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { get('modal').classList.remove('open'); get('logModal').classList.remove('open'); closeSheet(); } });
+
+function openModal(host) {
+  const m = merged.find(x => x.hostname === host) || { hostname: host };
+  const L = m.line, N = m.net;
+  get('m-title').textContent = '🖥 ' + host;
+  get('m-sub').textContent = `IP：${L?.ip || N?.ip || '—'}　MAC：${L?.mac || N?.mac || '—'}　最後回報：${fmtTime(lastTime(m) || null)}`;
+  switchTab('line');
+  buildLinePanel(L, host);
+  get('p-diag').innerHTML = N ? buildDiagPanel(N) : '<p class="help">這台電腦沒有網路健康監控資料。</p>';
+  loadNetHistory(host, !!N);
+  get('modal').classList.add('open');
+}
+
+function buildLinePanel(L, host) {
+  const p = get('p-line');
+  if (!L) { p.innerHTML = '<div class="verdict none">這台電腦還沒有 LINE 小幫手的監測資料（可能尚未安裝或尚未按過按鈕）。</div>'; return; }
+  const v = {
+    pass: ['✅ LINE 傳檔路徑正常', L.dns_mode === 'fixed' ? '已使用學網備援 DNS，obs.line-apps.com 只回應 IPv4，傳檔會走 IPv4。' : '目前沒有偵測到問題。'],
+    warn: ['⚠️ 有輕微異常', '可以使用，但部分數值偏離正常，建議觀察。'],
+    fail: ['❌ LINE 傳檔可能會卡住', '請依下方問題排查；若是備援 DNS 仍回應 AAAA，請回報縣網中心。']
+  }[L.result] || ['—', ''];
+  p.innerHTML = `<div class="verdict ${esc(L.result)}"><b>${v[0]}</b><br>${v[1]}${L.issues ? '<br><b>問題：</b>' + esc(L.issues) : ''}</div>
+    <div class="kv" style="font-size:14px;margin-bottom:12px">
+      <span><i>DNS 模式</i><b>${L.dns_mode === 'fixed' ? '學網備援' : '自動取得'}</b></span>
+      <span><i>DNS 伺服器</i><b style="white-space:normal;text-align:right">${esc(L.dns_servers || '—')}</b></span>
+      <span><i>A／AAAA</i><b>${esc(L.a_count)}／${esc(L.aaaa_count)}</b></span>
+      <span><i>閘道掉包</i><b>${L.gw_loss_pct === null || L.gw_loss_pct === '' ? '—' : esc(L.gw_loss_pct) + '%'}</b></span>
+      <span><i>TCP443 v4</i><b>${msTxt(L.tcp_v4_ms)}</b></span>
+      <span><i>TCP443 v6</i><b>${msTxt(L.tcp_v6_ms)}</b></span>
+    </div>
+    <h3 style="font-size:15px;margin:6px 0">監測紀錄（最新 200 筆）</h3>
+    <div class="tbl" id="lineHist"><p class="help"><span class="spin"></span>載入中…</p></div>`;
+  lineGas({ action: 'history', hostname: host, limit: 200 }).then(d => {
+    const rows = (d && d.rows) || [];
+    const box = get('lineHist'); if (!box) return;
+    if (!rows.length) { box.innerHTML = '<p class="help">尚無紀錄</p>'; return; }
+    const ri = { pass: '✅', warn: '⚠️', fail: '❌' };
+    box.innerHTML = '<table><thead><tr><th>時間</th><th>階段</th><th>DNS</th><th>A/AAAA</th><th>v4 443</th><th>v6 443</th><th>閘道掉包</th><th>判定</th><th>問題</th></tr></thead><tbody>' +
+      rows.map(h => `<tr><td>${fmtTime(h.ts)}</td><td>${esc(h.phase)}</td><td>${h.dns_mode === 'fixed' ? '備援' : '自動'}</td><td>${esc(h.a_count)}/${esc(h.aaaa_count)}</td>
+        <td class="${vc(h.tcp_v4_ms, 150, 500)}">${msTxt(h.tcp_v4_ms)}</td><td>${msTxt(h.tcp_v6_ms)}</td>
+        <td>${h.gw_loss_pct === null || h.gw_loss_pct === '' ? '—' : esc(h.gw_loss_pct) + '%'}</td><td>${ri[h.result] || esc(h.result)}</td><td>${esc(h.issues || '')}</td></tr>`).join('') + '</tbody></table>';
+  }).catch(() => { const box = get('lineHist'); if (box) box.innerHTML = '<p class="bad">載入失敗</p>'; });
+}
+
+async function loadNetHistory(host, has) {
+  const p = get('p-nhist');
+  if (!has) { p.innerHTML = '<p class="help">沒有網路健康監控資料。</p>'; return; }
+  p.innerHTML = '<p class="help"><span class="spin"></span>載入中…</p>';
+  try {
+    const d = await callNet({ action: 'history', hostname: host });
+    const rows = (d && d.rows) || [];
+    if (!rows.length) { p.innerHTML = '<p class="help">尚無歷史紀錄</p>'; return; }
+    const ri = { pass: '✅', warn: '⚠️', fail: '❌' };
+    p.innerHTML = '<div class="tbl"><table><thead><tr><th>時間</th><th>IP</th><th>閘道</th><th>外網</th><th>速度</th><th>DNS</th><th>狀態</th><th>修復</th></tr></thead><tbody>' +
+      rows.map(h => `<tr><td>${fmtTime(h.timestamp)}</td><td>${esc(h.ip || '—')}</td><td class="${vc(h.gw_ping_avg, 30, 80)}">${fmt(h.gw_ping_avg, 'ms')}</td>
+        <td class="${vc(h.wan_ping_avg, 80, 200)}">${fmt(h.wan_ping_avg, 'ms')}</td><td>${fmtDL(h.download_kbps)}</td>
+        <td class="${vc(h.dns_ms, 100, 300)}">${fmt(h.dns_ms, 'ms')}</td><td>${ri[h.result] || esc(h.result || '—')}</td><td>${esc(h.actions_taken || '—')}</td></tr>`).join('') + '</tbody></table></div>';
+  } catch { p.innerHTML = '<p class="bad">載入失敗</p>'; }
+}
+
+// ---------- 網路診斷說明（沿用 v2.6 人話解說） ----------
+function buildDiagPanel(r) {
+  const res = r.result || 'pass';
+  const v = { pass: ['✅ 網路狀況正常', '所有指標都在正常範圍內，可以正常使用。'],
+              warn: ['⚠️ 網路有輕微異常，建議檢查', '部分指標偏離正常值，速度或穩定性可能不佳。'],
+              fail: ['❌ 網路連線異常，需要處理', '偵測到嚴重的網路問題，請優先依下方建議處理。'] }[res] || ['—', ''];
+  return `<div class="verdict ${esc(res)}"><b>${v[0]}</b><br>${v[1]}</div>${buildMetrics(r)}
+    <h3 style="font-size:15px;margin:12px 0 8px">建議動作</h3>${buildSuggestions(r)}
+    ${r.actions_taken ? `<p class="tiny">🔧 已自動執行：${esc(r.actions_taken)}</p>` : ''}`;
+}
+function buildMetrics(r) {
+  const rows = [
+    { name: '閘道延遲', val: r.gw_ping_avg, unit: 'ms', good: 30, bad: 80, max: 200,
+      ex: { good: '路由器回應很快，本地網路狀態良好。', mid: '稍微偏高，可能是路由器負載高或網路線品質不佳。', bad: r.gw_ping_avg == null ? '無法連到閘道：網路線掉了、路由器當機或 IP 衝突。' : '本地網路有嚴重問題，建議重啟路由器。' } },
+    { name: '外網延遲', val: r.wan_ping_avg, unit: 'ms', good: 80, bad: 200, max: 400,
+      ex: { good: '連到外部網路正常，ISP 線路穩定。', mid: '比正常值高，可能是線路壅塞。', bad: r.wan_ping_avg == null ? '無法連到外網（8.8.8.8）。' : '上網速度會明顯變慢。' } },
+    { name: '下載速度', val: r.download_kbps, good: 5000, bad: 1000, max: 100000, rev: true,
+      ex: { good: '足以流暢使用網路教學資源。', mid: '低於建議值 5 Mbps，影片可能卡頓。', bad: r.download_kbps == null ? '無法測速，可能網路已中斷。' : '非常緩慢，幾乎無法正常使用。' } },
+    { name: 'DNS 解析', val: r.dns_ms, unit: 'ms', good: 100, bad: 300, max: 600,
+      ex: { good: 'DNS 解析速度正常。', mid: '偏慢，開新網頁會有短暫延遲。', bad: r.dns_ms == null ? 'DNS 解析失敗，網址可能都打不開。' : '非常緩慢，建議 ipconfig /flushdns 或更換 DNS。' } }
+  ];
+  return rows.map(m => {
+    const v = m.val === '' ? null : m.val;
+    const cls = v == null ? 'bad' : m.rev ? (v >= m.good ? 'good' : v >= m.bad ? 'mid' : 'bad') : (v <= m.good ? 'good' : v <= m.bad ? 'mid' : 'bad');
+    const pct = v == null ? 100 : Math.max(0, Math.min(100, m.rev ? 100 - v / m.max * 100 : v / m.max * 100));
+    const shown = m.name === '下載速度' ? fmtDL(v) : fmt(v, m.unit);
+    return `<div class="mrow"><span>${m.name}</span><b class="${cls}">${shown}</b><div class="bar"><div class="${cls}" style="width:${pct}%"></div></div><p>${m.ex[cls]}</p></div>`;
+  }).join('');
+}
+function buildSuggestions(r) {
+  const s = [], gw = r.gw_ping_avg, wan = r.wan_ping_avg, gwL = r.gw_loss_pct, wL = r.wan_loss_pct, dl = r.download_kbps, dns = r.dns_ms;
+  if (gwL >= 50 || gw == null) { s.push(['🔌 確認網路線是否插好', '閘道完全無回應，最常見是網路線鬆脫或路由器需要重啟。'], ['🔄 重啟路由器', '拔掉電源等 30 秒再插回。']); }
+  else if (gw > 30) s.push(['🔄 考慮重啟路由器', '閘道延遲偏高可能是路由器長時間運行。']);
+  if ((wL >= 50 || wan == null) && (gwL < 50 && gw != null)) s.push(['📞 聯繫 ISP 確認線路', '閘道正常但外網中斷，問題在路由器到 ISP 之間。']);
+  else if (wan > 80) s.push(['⏰ 觀察是否特定時段壅塞', '常見於上下課時段多人同時使用。']);
+  if (dns == null || dns > 300) s.push(['🧹 執行 ipconfig /flushdns', '清除 DNS 快取。'], ['⚙️ 檢查 DNS 設定', '可改用學網備援 DNS（老師端「一鍵修復」）。']);
+  if (dl != null && dl !== '' && dl < 1000) s.push(['👥 確認是否有裝置佔用頻寬', '可至路由器後台查看連線裝置。']);
+  if (!s.length) s.push(['👍 目前不需要任何動作', '繼續定期監控即可。']);
+  return s.map(x => `<div class="sug"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
+}
+
+route();
+</script>
+</body>
+</html>

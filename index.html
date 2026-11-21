@@ -1,138 +1,52 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant-TW">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>圖片壓縮裁切工具</title>
-<link rel="stylesheet" href="style.css">
+<title>車城國小｜網路健康健檢</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,"Microsoft JhengHei",sans-serif;color:#173641;background:#edf5f5}
+*{box-sizing:border-box}
+body{margin:0;font-size:16px;line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+header{background:#123c49;color:#fff}
+.wrap{width:min(calc(100% - 32px),960px);margin:auto}
+header .wrap{padding:16px 0;font-weight:700;font-size:17px}
+main{flex:1;padding:clamp(32px,8vw,72px) 0 40px}
+h1{margin:0;font-size:clamp(30px,6vw,50px);letter-spacing:-.04em;line-height:1.15}
+.lead{margin:12px 0 0;color:#4d6870}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:30px}
+.entry{display:flex;flex-direction:column;gap:10px;background:#fff;border:1px solid #cfdfdf;border-radius:18px;padding:clamp(20px,4vw,30px);text-decoration:none;color:inherit;transition:box-shadow .15s,transform .15s;min-height:200px}
+.entry:hover{box-shadow:0 0 0 3px #5a9896;transform:translateY(-2px)}
+.entry:focus-visible{outline:3px solid #9d5300;outline-offset:3px}
+.icon{font-size:36px;line-height:1}
+.entry h2{margin:0;font-size:21px}
+.entry p{margin:0;color:#4d6870;font-size:15px}
+.go{margin-top:auto;align-self:flex-start;display:inline-flex;align-items:center;min-height:44px;padding:8px 18px;border-radius:10px;background:#096369;color:#fff;font-weight:650}
+.sub{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.sub a{font-size:14px;color:#0b5d75}
+footer{text-align:center;color:#4d6870;font-size:13px;padding:16px 0 32px}
+</style>
 </head>
 <body>
-
-<div class="sticky">
-<header class="topbar">
-  <button id="menuBtn" class="icon-btn" aria-label="開啟選單">☰</button>
-  <h1>圖片壓縮裁切</h1>
-  <span class="count" id="countLabel">0 張</span>
-</header>
-
-<div id="bulkbar" class="bulkbar" hidden>
-  <label class="selall">
-    <input type="checkbox" id="selAll" aria-label="全選">
-    <span id="selLabel">全選</span>
-  </label>
-  <div class="bulk-actions">
-    <button class="btn sm" data-action="bulk" data-op="rotL" title="勾選的圖片向左旋轉 90°">↺ 左旋</button>
-    <button class="btn sm" data-action="bulk" data-op="rotR" title="勾選的圖片向右旋轉 90°">↻ 右旋</button>
-    <button class="btn sm" data-action="bulk" data-op="flipH" title="勾選的圖片左右翻轉">⇋ 水平翻轉</button>
-    <button class="btn sm" data-action="bulk" data-op="flipV" title="勾選的圖片上下翻轉">⇅ 垂直翻轉</button>
-    <button class="btn sm" data-action="bulk" data-op="reset" title="取消勾選圖片的旋轉、翻轉與裁切">⟲ 還原</button>
-    <button class="btn sm" data-action="bulk" data-op="compress">⚡ 壓縮</button>
-    <button class="btn sm primary" data-action="bulk" data-op="download">⬇ 下載</button>
-    <button class="btn sm danger" data-action="bulk" data-op="remove">✕ 移除</button>
+<header><div class="wrap">車城國小｜網路健康健檢</div></header>
+<main class="wrap">
+  <h1>網路健康健檢</h1>
+  <p class="lead">請選擇要使用的功能。LINE 傳圖、傳檔卡住時，請選「LINE 網路小幫手」；想檢查整體網路狀況，請選「網路健康監控」。</p>
+  <div class="grid">
+    <a class="entry" href="web/">
+      <span class="icon" aria-hidden="true">💬</span>
+      <h2>車城國小｜LINE 網路小幫手</h2>
+      <p>一鍵切換學網備援 DNS，解決 LINE 傳圖、傳檔卡住的問題，並自動記錄網路狀況給資訊老師。</p>
+      <span class="go">進入 →</span>
+    </a>
+    <a class="entry" href="line-diagnostics/">
+      <span class="icon" aria-hidden="true">📡</span>
+      <h2>車城國小｜網路健康監控</h2>
+      <p>檢查瀏覽器連線、執行 Windows 完整診斷（ipconfig /all），並監測網路 30 分鐘。</p>
+      <span class="go">進入 →</span>
+    </a>
   </div>
-</div>
-
-<div id="pendbar" class="pendbar" hidden role="status">
-  <span id="pendText"></span>
-  <div class="pend-actions">
-    <button class="btn sm primary" data-action="pendOk">✓ 確認套用</button>
-    <button class="btn sm" data-action="pendCancel">↶ 取消還原</button>
-  </div>
-</div>
-</div>
-
-<nav id="drawer" class="drawer" hidden>
-  <div class="drawer-backdrop" data-action="closeMenu"></div>
-  <div class="drawer-panel">
-    <button class="btn" data-action="pickFiles">📄 選取多張圖片</button>
-    <button class="btn" data-action="pickFolder">🗂 選擇資料夾</button>
-    <button class="btn" data-action="batch">⚡ 全部壓縮</button>
-    <button class="btn" data-action="zip">📦 下載全部（ZIP）</button>
-    <button class="btn" data-action="openSettings">⚙ 壓縮設定</button>
-    <button class="btn danger" data-action="clearAll">🗑 清除全部</button>
-  </div>
-</nav>
-
-<main>
-  <div id="dropzone" class="dropzone">
-    <p>點這裡選取圖片，或把圖片拖曳到此處</p>
-    <small>支援 JPG、PNG、WebP、HEIC 等格式</small>
-  </div>
-  <section id="grid" class="grid"></section>
 </main>
-
-<div id="editor" class="editor" hidden>
-  <div class="editor-head">
-    <button class="icon-btn" data-action="closeEditor" aria-label="返回">←</button>
-    <span id="editorName"></span>
-    <button class="btn primary" data-action="saveEdit">套用</button>
-  </div>
-  <div class="stage">
-    <div class="stage-inner" id="stageInner">
-      <canvas id="prevCanvas"></canvas>
-      <div id="cropBox" class="crop-box">
-        <span class="nw" data-h="nw"></span>
-        <span class="ne" data-h="ne"></span>
-        <span class="sw" data-h="sw"></span>
-        <span class="se" data-h="se"></span>
-      </div>
-    </div>
-  </div>
-  <div class="tools">
-    <button class="btn" data-action="rotate" data-dir="-90">↺ 左轉</button>
-    <button class="btn" data-action="rotate" data-dir="90">↻ 右轉</button>
-    <button class="btn" data-action="flip" data-axis="h">⇋ 水平翻轉</button>
-    <button class="btn" data-action="flip" data-axis="v">⇅ 垂直翻轉</button>
-    <select id="ratio" aria-label="裁切比例">
-      <option value="free">自由裁切</option>
-      <option value="1:1">1:1</option>
-      <option value="4:3">4:3</option>
-      <option value="3:4">3:4</option>
-      <option value="16:9">16:9</option>
-    </select>
-    <button class="btn" data-action="resetCrop">重設裁切</button>
-  </div>
-</div>
-
-<div id="sheet" class="sheet" hidden>
-  <h2>壓縮設定</h2>
-  <div class="field">
-    <label for="targetRange">每張目標大小（不超過）：<b id="targetVal">1.5 MB</b></label>
-    <input type="range" id="targetRange" min="1" max="2" step="0.1" value="1.5">
-  </div>
-  <div class="field">
-    <label for="fmtSelect">輸出格式</label>
-    <select id="fmtSelect">
-      <option value="image/jpeg">JPG（建議，相容性最好）</option>
-      <option value="image/webp">WebP（同大小畫質較好）</option>
-      <option value="image/png">PNG（檔案通常較大）</option>
-    </select>
-  </div>
-  <div class="row">
-    <button class="btn primary" data-action="batch">全部壓縮</button>
-    <button class="btn" data-action="closeSheet">關閉</button>
-  </div>
-</div>
-
-<div id="modal" class="modal" hidden>
-  <div class="modal-backdrop"></div>
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="mTitle">
-    <h2 id="mTitle"></h2>
-    <p id="mBody"></p>
-    <div class="row">
-      <button class="btn" id="mCancel">取消</button>
-      <button class="btn primary" id="mOk">確定</button>
-    </div>
-  </div>
-</div>
-
-<div id="toasts" class="toasts"></div>
-
-<input type="file" id="fileInput" accept="image/*,.heic,.heif" multiple hidden>
-<input type="file" id="folderInput" accept="image/*,.heic,.heif" webkitdirectory hidden>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
-<script src="app.js"></script>
+<footer>車城國小資訊老師徐吉德整理製作@2026</footer>
 </body>
 </html>

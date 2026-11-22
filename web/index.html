@@ -242,10 +242,11 @@ footer button{background:none;border:0;color:#0b5d75;text-decoration:underline;c
 // =============================================
 // ⚙️ 設定：兩個 GAS 網址
 // =============================================
-const LINE_GAS_URL = 'https://script.google.com/macros/s/請貼上LINE小幫手GAS部署網址/exec'; // 新：LINE 網路小幫手
+const LINE_GAS_URL = 'https://script.google.com/macros/s/AKfycbyrCNPyKH9zpJRk8euUQ2sdxuA9iqFbKtCZJWJVVaKvKEijIB4m4S7IsF_7asQZAFCU/exec'; // 新：LINE 網路小幫手
 const NET_GAS_URL  = 'https://script.google.com/macros/s/AKfycbzPqmbLwMdAWvSNFrXgDudtjcW1gbU9ovPiPSweofJR704z4GXk8upMCmOXTFiarmeTiQ/exec'; // 原：網路健康監控 v2.6
 // =============================================
 const CHANGELOG = [
+  { version: 'v3.1.0', date: '2026-11-22', desc: '一鍵修復與還原前後各量 3 次並記錄差異（IPv4、IPv6、MAC、網卡、閘道、DNS、AAAA、TCP443）；儀表板新增「修改前後比較」' },
   { version: 'v3.0.0', date: '2026-11-20', desc: '合併 LINE 網路診斷與網路健康監控；新增一鍵修復 DNS（學網備援 DNS）、30 分鐘封包監測上傳試算表、異常自動通知管理者' },
   { version: 'v2.6',   date: '2026-04-25', desc: '網路健康監控儀表板（閘道/外網/下載/DNS）' }
 ];
@@ -482,8 +483,21 @@ function buildLinePanel(L, host) {
       <span><i>TCP443 v4</i><b>${msTxt(L.tcp_v4_ms)}</b></span>
       <span><i>TCP443 v6</i><b>${msTxt(L.tcp_v6_ms)}</b></span>
     </div>
-    <h3 style="font-size:15px;margin:6px 0">監測紀錄（最新 200 筆）</h3>
+    <h3 style="font-size:15px;margin:6px 0">修改前後比較（最近 5 次）</h3>
+    <div id="lineDiff"><p class="help"><span class="spin"></span>載入中…</p></div>
+    <h3 style="font-size:15px;margin:14px 0 6px">監測紀錄（最新 200 筆）</h3>
     <div class="tbl" id="lineHist"><p class="help"><span class="spin"></span>載入中…</p></div>`;
+  lineGas({ action: 'changes', hostname: host, limit: 5 }).then(d => {
+    const box = get('lineDiff'); if (!box) return;
+    const list = (d && d.rows) || [];
+    if (!list.length) { box.innerHTML = '<p class="help">尚無一鍵修復或還原紀錄。</p>'; return; }
+    box.innerHTML = list.map(c => `<details ${c === list[0] ? 'open' : ''} style="margin-top:8px">
+      <summary>${esc(c.action)}　${fmtTime(c.time)}　<span class="tiny">變化：${esc(c.changed || '無')}</span></summary>
+      <div class="tbl" style="margin-top:8px"><table><thead><tr><th>項目</th><th>前（${esc(c.before_n)} 次）</th><th>後（${esc(c.after_n)} 次）</th></tr></thead><tbody>` +
+      c.items.map(it => { const diff = String(it.before) !== String(it.after);
+        return `<tr${diff ? ' style="background:#fff3d6"' : ''}><td>${diff ? '★ ' : ''}${esc(it.label)}</td><td style="white-space:normal">${esc(it.before)}</td><td style="white-space:normal">${esc(it.after)}</td></tr>`; }).join('') +
+      '</tbody></table></div></details>').join('');
+  }).catch(() => { const box = get('lineDiff'); if (box) box.innerHTML = '<p class="bad">載入失敗</p>'; });
   lineGas({ action: 'history', hostname: host, limit: 200 }).then(d => {
     const rows = (d && d.rows) || [];
     const box = get('lineHist'); if (!box) return;

@@ -8,15 +8,17 @@ param([ValidateSet('queue','guard','fix','restore','monitor')][string]$Mode = 'q
 
 # ======================= 設定區（只需改這裡） =======================
 $Config = @{
-  Version        = 'v3.0.0'
+  Version        = 'v3.1.0'
   DnsV4          = '163.24.239.2'                 # 學網備援 IPv4 DNS
   DnsV6          = '2001:288:8600:1::1002'        # 學網備援 IPv6 DNS
   TestHost       = 'obs.line-apps.com'            # LINE 傳檔/傳圖伺服器
-  GasUrl         = 'https://script.google.com/macros/s/請貼上新部署的網址/exec'
-  UploadToken    = 'chcs-line-請改成自己的密語'     # 必須和 GAS 指令碼屬性 UPLOAD_TOKEN 相同
+  GasUrl         = 'https://script.google.com/macros/s/AKfycbyrCNPyKH9zpJRk8euUQ2sdxuA9iqFbKtCZJWJVVaKvKEijIB4m4S7IsF_7asQZAFCU/exec'
+  UploadToken    = 'chcs-line-jEy14dRyaZOktS1I'     # 必須和 GAS 指令碼屬性 UPLOAD_TOKEN 相同
   MonitorMinutes = 30                             # 監測總長（分鐘）
   IntervalSec    = 10                             # 採樣間隔（秒）
   BatchSize      = 6                              # 累積幾筆上傳一次（6 筆 ≈ 1 分鐘）
+  BaselineCount  = 3                              # 修改／還原前後各量幾次（取平均比較）
+  BaselineGapSec = 5                              # 前後量測每次間隔（秒）
 }
 # ====================================================================
 
@@ -163,12 +165,16 @@ function Resolve-Records([string]$type) {
 }
 function Get-HostInfo {
   $a = Get-TargetAdapters | Select-Object -First 1
-  $ip = ''; $mac = ''
+  $ip = ''; $ip6 = ''; $mac = ''; $name = ''; $gw = ''
   if ($a) {
-    $mac = $a.MacAddress
+    $mac = $a.MacAddress; $name = $a.Name
     $ip = (Get-NetIPAddress -InterfaceIndex $a.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue | Select-Object -First 1).IPAddress
+    $ip6 = (Get-NetIPAddress -InterfaceIndex $a.ifIndex -AddressFamily IPv6 -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPAddress -notlike 'fe80*' -and $_.AddressState -eq 'Preferred' } |
+            Sort-Object { $_.SuffixOrigin -eq 'Random' } | Select-Object -First 1).IPAddress
+    $gw = (Get-NetRoute -DestinationPrefix '0.0.0.0/0' -InterfaceIndex $a.ifIndex -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1).NextHop
   }
-  @{ hostname = $env:COMPUTERNAME; ip = [string]$ip; mac = [string]$mac }
+  @{ hostname = $env:COMPUTERNAME; ip = [string]$ip; ip_v6 = [string]$ip6; mac = [string]$mac; adapter = [string]$name; gateway = [string]$gw }
 }
 function Get-Sample([string]$phase) {
   $state = Get-State
@@ -178,7 +184,8 @@ function Get-Sample([string]$phase) {
   $sw.Stop(); $dnsMs = [int]$sw.ElapsedMilliseconds
   $a6 = Resolve-Records 'AAAA'
   $v4ip = ($a4 | Select-Object -First 1); $v6ip = ($a6 | Select-Object -First 1)
-  $gw = (Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1).NextHop
+  $info = Get-HostInfo
+  $gw = $info.gateway
   $ping = Measure-Ping $gw 4
   $v6g = [bool](Get-NetIPAddress -AddressFamily IPv6 -ErrorAction SilentlyContinue |
            Where-Object { $_.PrefixOrigin -in @('RouterAdvertisement','Dhcp','Manual') -and $_.IPAddress -notlike 'fe80*' -and $_.AddressState -eq 'Preferred' })
@@ -198,6 +205,11 @@ function Get-Sample([string]$phase) {
     gw_ping_ms  = $ping.avg
     gw_loss_pct = $ping.loss
     v6_global   = $v6g
+    ip          = $info.ip
+    ip_v6       = $info.ip_v6
+    mac         = $info.mac
+    adapter     = $info.adapter
+    gateway     = [string]$gw
   }
 }
 
@@ -213,7 +225,7 @@ function Send-Samples([string]$session, [string]$mode, $samples) {
   $info = Get-HostInfo
   $body = [ordered]@{
     action = 'upload'; token = $Config.UploadToken; version = $Config.Version
-    hostname = $info.hostname; ip = $info.ip; mac = $info.mac
+    hostname = $info.hostname; ip = $info.ip; mac = $info.mac; ip_v6 = $info.ip_v6; adapter = $info.adapter; gateway = $info.gateway
     session = $session; mode = $mode; samples = @($all)
   } | ConvertTo-Json -Depth 6 -Compress
   try {
@@ -245,8 +257,40 @@ function Read-Request {
 
 function Format-Ms($v) { if ($null -eq $v) { '逾時' } else { "$v ms" } }
 
+# 修改／還原前後各量 BaselineCount 次
+function Get-Baseline([string]$phase) {
+  $list = @()
+  for ($i = 0; $i -lt $Config.BaselineCount; $i++) {
+    if ($i -gt 0) { Start-Sleep -Seconds $Config.BaselineGapSec }
+    $list += Get-Sample $phase
+  }
+  return $list
+}
+function Get-AvgVal($list, [string]$key) {
+  $v = @($list | ForEach-Object { $_[$key] } | Where-Object { $null -ne $_ -and $_ -ne '' })
+  if ($v.Count -eq 0) { return $null }
+  [int](($v | Measure-Object -Average).Average)
+}
+function Get-LastVal($list, [string]$key) { $x = @($list)[-1]; if ($x) { $x[$key] } else { $null } }
+function Format-Diff($before, $after) {
+  $rows = @(
+    @('DNS 伺服器', (Get-LastVal $before 'dns_servers'), (Get-LastVal $after 'dns_servers')),
+    @('電腦 IPv4',  (Get-LastVal $before 'ip'),          (Get-LastVal $after 'ip')),
+    @('電腦 IPv6',  (Get-LastVal $before 'ip_v6'),       (Get-LastVal $after 'ip_v6')),
+    @('MAC',        (Get-LastVal $before 'mac'),         (Get-LastVal $after 'mac')),
+    @('LINE 伺服器 IPv6 筆數', (Get-LastVal $before 'aaaa_count'), (Get-LastVal $after 'aaaa_count')),
+    @('TCP443 IPv4（平均）', (Format-Ms (Get-AvgVal $before 'tcp_v4_ms')), (Format-Ms (Get-AvgVal $after 'tcp_v4_ms'))),
+    @('TCP443 IPv6（平均）', (Format-Ms (Get-AvgVal $before 'tcp_v6_ms')), (Format-Ms (Get-AvgVal $after 'tcp_v6_ms')))
+  )
+  ($rows | ForEach-Object {
+    $b = [string]$_[1]; $a = [string]$_[2]
+    if ($b -eq '') { $b = '—' }; if ($a -eq '') { $a = '—' }
+    if ($b -eq $a) { "・$($_[0])：$a（不變）" } else { "・$($_[0])：$b → $a" }
+  }) -join "`n"
+}
+
 function Start-Monitor([string]$session, [string]$mode, $initial) {
-  $buffer = @($initial)
+  $buffer = @($initial | Where-Object { $_ })
   $end = (Get-Date).AddMinutes($Config.MonitorMinutes)
   Write-Log ('開始監測 ' + $Config.MonitorMinutes + ' 分鐘')
   while ((Get-Date) -lt $end) {
@@ -279,26 +323,35 @@ function Invoke-Request($req) {
         Send-Samples $session 'fix' @(Get-Sample 'fix-skip') | Out-Null
         return
       }
-      $before = Get-Sample 'before'
+      $before = @(Get-Baseline 'before')
       try { $names = Set-FixedDns $true }
-      catch { Write-Status $req.id $false ('修改 DNS 失敗：' + $_.Exception.Message); return }
-      Start-Sleep -Seconds 2
-      $after = Get-Sample 'after'
-      if ($after.aaaa_count -eq 0 -and $after.a_count -gt 0) {
-        $msg = "已切換為學網備援 DNS（$($names -join '、')）。`nLINE 傳檔伺服器現在只回應 IPv4，請再試一次傳圖/傳檔。`n（之後 $($Config.MonitorMinutes) 分鐘會在背景自動記錄網路狀況）"
+      catch {
+        Write-Status $req.id $false ('修改 DNS 失敗：' + $_.Exception.Message)
+        Send-Samples $session 'fix' $before | Out-Null
+        return
+      }
+      Start-Sleep -Seconds 3
+      $after = @(Get-Baseline 'after')
+      $last = $after[-1]
+      $diff = Format-Diff $before $after
+      if ($last.aaaa_count -eq 0 -and $last.a_count -gt 0) {
+        $msg = "已切換為學網備援 DNS（$($names -join '、')）。LINE 傳檔伺服器現在只回應 IPv4，請再試一次傳圖/傳檔。`n`n修改前 → 修改後：`n$diff`n`n（之後 $($Config.MonitorMinutes) 分鐘會在背景自動記錄網路狀況）"
         Write-Status $req.id $true $msg
       } else {
-        $msg = "已切換 DNS，但 LINE 伺服器仍回應 $($after.aaaa_count) 筆 IPv6 位址（IPv4 $($after.a_count) 筆）。`n已自動通知資訊老師，請先照常使用。"
+        $msg = "已切換 DNS，但 LINE 伺服器仍回應 $($last.aaaa_count) 筆 IPv6 位址。已自動通知資訊老師，請先照常使用。`n`n修改前 → 修改後：`n$diff"
         Write-Status $req.id $false $msg
       }
-      Start-Monitor $session 'fix' @($before, $after)
+      Send-Samples $session 'fix' (@($before) + @($after)) | Out-Null
+      Start-Monitor $session 'fix' @()
     }
     'restore' {
+      $before = @(Get-Baseline 'before')
       Restore-Dns $true
-      Start-Sleep -Seconds 2
-      $s = Get-Sample 'restore'
-      Write-Status $req.id $true ('已還原為原本的 DNS 設定。目前 DNS：' + $s.dns_servers)
-      Send-Samples $session 'restore' @($s) | Out-Null
+      Start-Sleep -Seconds 3
+      $after = @(Get-Baseline 'after')
+      $diff = Format-Diff $before $after
+      Write-Status $req.id $true ("已還原為原本的 DNS 設定。`n`n還原前 → 還原後：`n$diff")
+      Send-Samples $session 'restore' (@($before) + @($after)) | Out-Null
     }
     'monitor' {
       $s = Get-Sample 'monitor'

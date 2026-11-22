@@ -27,7 +27,7 @@ $label = @{ fix = '一鍵修復（切換學網備援 DNS）'; restore = '還原 
 $tray = New-Object System.Windows.Forms.NotifyIcon
 $tray.Icon = [System.Drawing.SystemIcons]::Information
 $tray.Visible = $true
-$tray.ShowBalloonTip(5000, $Title, "正在執行：$label，約需 10–20 秒…", 'Info')
+$tray.ShowBalloonTip(5000, $Title, "正在執行：$label，修改前後各量 3 次，約需 1 分鐘…", 'Info')
 
 try {
   Set-Content -Path (Join-Path $Root "queue\$id.req") -Value "$mode|$id" -Encoding ASCII -ErrorAction Stop
@@ -42,10 +42,10 @@ if ($LASTEXITCODE -ne 0) {
   Show-Box '無法啟動小幫手排程工作，請聯絡資訊老師重新安裝。' 'Warning'; exit 1
 }
 
-# 等待 SYSTEM 端回報結果（最多 90 秒）
+# 等待 SYSTEM 端回報結果（最多 180 秒）
 $statusFile = Join-Path $Root 'status\last.json'
 $result = $null
-for ($i = 0; $i -lt 90; $i++) {
+for ($i = 0; $i -lt 180; $i++) {
   Start-Sleep -Seconds 1
   if (Test-Path $statusFile) {
     try {
@@ -57,7 +57,7 @@ for ($i = 0; $i -lt 90; $i++) {
 $tray.Dispose()
 
 if ($null -eq $result) {
-  Show-Box '小幫手沒有在 90 秒內回應。可能電腦忙碌中，請稍後再按一次；若持續發生請聯絡資訊老師。' 'Warning'
+  Show-Box '小幫手沒有在 3 分鐘內回應。可能電腦忙碌中，請稍後再按一次；若持續發生請聯絡資訊老師。' 'Warning'
 } elseif ($result.ok) {
   Show-Box ([string]$result.message) 'Information'
 } else {
